@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display-hero: "Bangers", cursive;
+  --font-label-sm: "Hanken Grotesk", sans-serif;
+  --font-body-md: "Hanken Grotesk", sans-serif;
+  --font-headline-lg: "Bangers", cursive;
+  --font-pixel: "Press Start 2P", monospace;
+  --font-sans: "Hanken Grotesk", sans-serif;
+}
+
+/* Custom Comic & Brutalist Utility Classes */
+.comic-border {
+  border: 3px solid #121312;
+}
+
+.comic-shadow {
+  box-shadow: 4px 4px 0px 0px #1C0770;
+}
+
+.comic-shadow-accent {
+  box-shadow: 4px 4px 0px 0px #3A9AFF;
+}
+
+.block-shadow {
+  box-shadow: 4px 4px 0px 0px #121212;
+}
+
+.block-shadow-sm {
+  box-shadow: 2px 2px 0px 0px #121212;
+}
+
+.bg-stripes {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 10px,
+    transparent 10px,
+    transparent 20px
+  );
+}
+
+.cross-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 2px,
+    rgba(18, 18, 18, 0.1) 2px,
+    rgba(18, 18, 18, 0.1) 4px
+  );
+}
+
+.comic-card {
+  background-color: #1c0770;
+  border: 3px solid #3A9AFF;
+  box-shadow: 4px 4px 0px 0px #121212;
+  border-radius: 0.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.comic-input {
+  border: 3px solid #121212;
+  background-color: #121312;
+  color: #ffffff;
+  border-radius: 0.25rem;
+}
+
+.comic-input:focus {
+  outline: none;
+  border-color: #3A9AFF;
+  box-shadow: 2px 2px 0px 0px #3A9AFF;
+}
+
+.comic-button {
+  border: 2px solid #121212;
+  background-color: #3A9AFF;
+  color: #ffffff;
+  box-shadow: 2px 2px 0px 0px #121212;
+  transition: all 0.1s ease;
+}
+
+.comic-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px #121212;
+}
+
+/* Hard outline typography styles for headliner feels */
+.text-stroke-black {
+  text-shadow: 2px 2px 0px #121312, -2px -2px 0px #121312, 2px -2px 0px #121312, -2px 2px 0px #121312;
+}
+
+/* Pixel corners effect */
+.pixel-corners {
+  clip-path: polygon(
+      4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px
+  );
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #121312;
+}
+::-webkit-scrollbar-thumb {
+  background: #1c0770;
+  border: 2px solid #121312;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3A9AFF;
+}
