@@ -30,13 +30,13 @@ export default function BattleView({
   // Boss state
   const [bossHp, setBossHp] = useState(60);
   const maxBossHp = 60;
-  const bossName = "ELDER VEX";
+  const bossName = "Midnight Glutton";
 
   // Slider State for checking hits
   const [isPlayingSlider, setIsPlayingSlider] = useState(false);
   const [sliderPosition, setSliderPosition] = useState(0);
   const directionRef = useRef(1);
-  const sliderSpeedRef = useRef(3); // Speed of slider (percent per tick)
+  const sliderSpeedRef = useRef(7.5); // Fast, responsive high-speed slider per frame tick
 
   // Game state
   const [battleOutcome, setBattleOutcome] = useState<"ongoing" | "victory" | "defeat">("ongoing");
@@ -203,105 +203,98 @@ export default function BattleView({
   }, [floatingTexts]);
 
   return (
-    <div className={`relative w-full h-[calc(100vh-100px)] mt-20 select-none overflow-hidden rounded-2xl border-4 border-[#121312] md:max-w-md md:mx-auto shadow-[8px_8px_0px_0px_#1C0770] ${
+    <div className={`relative w-full mt-24 select-none overflow-hidden rounded-2xl border-4 border-[#121312] md:max-w-md md:mx-auto bg-[#121312] shadow-[8px_8px_0px_0px_#1C0770] flex flex-col ${
       isScreenShaking ? "animate-bounce" : ""
     }`}>
-      {/* Cinematic Rainy Copocalypse Alley Wallpaper */}
-      <div 
-        className={`absolute inset-0 bg-cover bg-center transition-all duration-300 ${
-          isEnemyFlashing ? "brightness-150 contrast-125 saturate-150" : ""
-        }`}
-        style={{
-          backgroundImage: "url('https://lh3.googleusercontent.com/aida/AP1WRLuWoX4Au0CUU2Gz9b3GfRAhDpWCg17zoqOpYs6nB_d1HG-PsVaiiSvU6ZSDBwj4wpPlfEarzqd4AVE94o8qSggFFTccJAJvhOQZ7vsKKD-ykzY13g9pNx5OkVEWc_WYilPoULLYa845fQqIl7ox02jTvnYNYUaBTT1JrpcHueqfl2dc9tWnr9jiLp1k_eIvDFmO83N1QYEjb4I-8shwj4qD8nwOgSYALI1IFk8aQ7_uKU2RxNjZ_qYq1A')",
-        }}
-      >
-        {/* Subtle Rainy overlay using Tailwind */}
-        <div className="absolute inset-0 bg-black/40 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:4px_20px] pointer-events-none opacity-80" />
-      </div>
-
-      {/* Floating Damage Text Indicators */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30">
-        <AnimatePresence>
-          {floatingTexts.map((txt) => (
-            <motion.div
-              key={txt.id}
-              initial={{ opacity: 0, y: 10, scale: 0.6 }}
-              animate={{ opacity: 1, y: -80, scale: [0.8, 1.4, 1.2] }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className={`absolute font-display-hero uppercase text-stroke-black text-4xl tracking-widest text-center ${
-                txt.type === "critical"
-                  ? "text-green-400 text-5xl"
-                  : txt.type === "glancing"
-                  ? "text-yellow-400"
-                  : txt.type === "boss-attack"
-                  ? "text-red-500 font-pixel text-xl"
-                  : txt.type === "heal"
-                  ? "text-cyan-300"
-                  : "text-gray-400 font-sans font-bold text-2xl"
-              }`}
-            >
-              {txt.text}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* BOSS HEALTH BAR (Aggressive, mirrored design in top gutter) */}
-      <div className="absolute top-4 left-4 right-4 z-20">
-        <div className="bg-[#121312] border-3 border-red-500 rounded-lg p-2 filter drop-shadow-lg scale-95 md:scale-100">
-          <div className="flex justify-between items-center mb-1">
-            <span className="font-display-hero text-red-500 text-xl tracking-wide uppercase">
-              👿 Boss: {bossName}
-            </span>
-            <span className="font-pixel text-[10px] text-red-400">
-              HP {bossHp} / {maxBossHp}
-            </span>
-          </div>
-          <div className="h-4 bg-gray-950 rounded-full border-2 border-red-950 overflow-hidden relative">
-            <motion.div
-              className="h-full bg-red-600 border-r-2 border-white"
-              animate={{ width: `${(bossHp / maxBossHp) * 100}%` }}
-              transition={{ duration: 0.3 }}
-            />
-            {/* Striped overlay for health cells */}
-            <div className="absolute inset-0 bg-stripes opacity-30 pointer-events-none" />
-          </div>
+      
+      {/* Rectangle top Boss status layout */}
+      <div className="w-full bg-[#1C0770] border-b-4 border-[#121312] p-4 flex flex-col gap-2 shrink-0">
+        <div className="flex justify-between items-center">
+          <span className="font-display-hero text-red-500 text-2xl tracking-wider uppercase text-stroke-black">
+            👿 BOSS: {bossName}
+          </span>
+          <span className="font-pixel text-[10px] text-red-400">
+            HP {bossHp} / {maxBossHp}
+          </span>
+        </div>
+        <div className="h-4 bg-gray-950 rounded-full border-2 border-red-950 overflow-hidden relative">
+          <motion.div
+            className="h-full bg-red-650"
+            style={{ backgroundColor: "#dc2626" }}
+            animate={{ width: `${(bossHp / maxBossHp) * 100}%` }}
+            transition={{ duration: 0.3 }}
+          />
+          {/* Striped overlay for health cells */}
+          <div className="absolute inset-0 bg-stripes opacity-30 pointer-events-none" />
         </div>
       </div>
 
-      {/* Action Logs narration block */}
-      <div className="absolute top-22 left-4 right-4 z-20 text-center">
-        <div className="inline-block bg-[#000b1d]/90 border-2 border-[#3A9AFF] rounded px-3 py-1.5 max-w-[90%] mx-auto backdrop-blur-sm">
-          <p className="font-body-md text-xs italic text-gray-200 select-none">
-            {actionLog}
-          </p>
+      {/* Compressed Square Epic Battle Arena background */}
+      <div className="relative w-full aspect-square overflow-hidden bg-[#1D1E2C] border-b-4 border-[#121312] shrink-0">
+        <div 
+          className={`absolute inset-0 bg-cover bg-top transition-all duration-300 brightness-125 saturate-110 scale-[1.32] origin-top ${
+            isEnemyFlashing ? "brightness-150 contrast-125 saturate-150" : ""
+          }`}
+          style={{
+            backgroundImage: "url('https://lh3.googleusercontent.com/aida/AP1WRLuWoX4Au0CUU2Gz9b3GfRAhDpWCg17zoqOpYs6nB_d1HG-PsVaiiSvU6ZSDBwj4wpPlfEarzqd4AVE94o8qSggFFTccJAJvhOQZ7vsKKD-ykzY13g9pNx5OkVEWc_WYilPoULLYa845fQqIl7ox02jTvnYNYUaBTT1JrpcHueqfl2dc9tWnr9jiLp1k_eIvDFmO83N1QYEjb4I-8shwj4qD8nwOgSYALI1IFk8aQ7_uKU2RxNjZ_qYq1A')",
+          }}
+        >
+          {/* Subtle Rainy overlay with lighter opacity for high contrast background visibility */}
+          <div className="absolute inset-0 bg-black/10 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:4px_20px] pointer-events-none opacity-80" />
+        </div>
+
+        {/* Floating Damage Text Indicators */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30">
+          <AnimatePresence>
+            {floatingTexts.map((txt) => (
+              <motion.div
+                key={txt.id}
+                initial={{ opacity: 0, y: 15, scale: 0.6 }}
+                animate={{ opacity: 1, y: -70, scale: [0.8, 1.4, 1.2] }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className={`absolute font-display-hero uppercase text-stroke-black text-4xl tracking-widest text-center ${
+                  txt.type === "critical"
+                    ? "text-green-400 text-5xl"
+                    : txt.type === "glancing"
+                    ? "text-yellow-400"
+                    : txt.type === "boss-attack"
+                    ? "text-red-500 font-pixel text-xl"
+                    : txt.type === "heal"
+                    ? "text-cyan-300"
+                    : "text-gray-400 font-sans font-bold text-2xl"
+                }`}
+              >
+                {txt.text}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* PIXEL ACTIVE UI OVERLAY PANEL (Bottom HUD) */}
-      <div className="absolute bottom-4 left-4 right-4 z-20">
-        <div className="ui-panel pixel-corners w-full relative flex flex-row justify-between items-stretch bg-[#000b1d]/95 border-4 border-[#3A9AFF] shadow-[0_0_15px_#3A9AFF,inset_0_0_10px_#3A9AFF] p-4 min-h-[140px] text-left">
+      {/* PIXEL ACTIVE UI OVERLAY PANEL (Bottom Controls framed perfectly below background) */}
+      <div className="w-full bg-[#121312] p-4 flex-grow flex flex-col justify-center">
+        <div className="ui-panel pixel-corners w-full relative flex flex-row justify-between items-stretch bg-[#000b1d] border-4 border-[#3A9AFF] shadow-[0_0_15px_#3A9AFF,inset_0_0_10px_#3A9AFF] p-3 min-h-[120px] text-left">
           
-          {/* Active slider state vs standard action buttons selection */}
-          <div className="w-2/3 pr-3 flex flex-col justify-center border-r border-[#3A9AFF]/30">
+          {/* Active slider state vs standard action buttons selection (lowered alignment) */}
+          <div className="w-2/3 pr-3 flex flex-col justify-end pb-0 border-r border-[#3A9AFF]/30">
             {!isPlayingSlider ? (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
                 {battleOutcome === "ongoing" ? (
                   <>
                     <button
                       onClick={handleFightClick}
-                      className="btn-pixel bg-transparent hover:bg-[#3A9AFF] hover:text-[#000b1d] text-[#3A9AFF] border-2 border-[#3A9AFF] p-2.5 font-pixel text-xs flex items-center justify-center gap-2 select-none active:scale-95 transition-all text-left"
+                      className="btn-pixel bg-transparent hover:bg-[#3A9AFF] hover:text-[#000b1d] text-[#3A9AFF] border-2 border-[#3A9AFF] p-1.5 font-pixel text-[10px] flex items-center justify-center gap-1.5 select-none active:scale-95 transition-all text-left"
                     >
-                      <Swords className="w-4 h-4 shrink-0" />
+                      <Swords className="w-3.5 h-3.5 shrink-0" />
                       FIGHT
                     </button>
                     
                     <button
                       onClick={onRetreat}
-                      className="btn-pixel bg-transparent hover:bg-red-500 hover:text-white text-red-400 border-2 border-red-500 p-2.5 font-pixel text-xs flex items-center justify-center gap-2 select-none active:scale-95 transition-all text-left"
+                      className="btn-pixel bg-transparent hover:bg-red-500 hover:text-white text-red-400 border-2 border-red-500 p-1.5 font-pixel text-[10px] flex items-center justify-center gap-1.5 select-none active:scale-95 transition-all text-left"
                     >
-                      <LogOut className="w-4 h-4 shrink-0" />
+                      <LogOut className="w-3.5 h-3.5 shrink-0" />
                       RETREAT
                     </button>
                   </>
@@ -311,7 +304,7 @@ export default function BattleView({
                       VICTORY!
                     </span>
                     <span className="font-pixel text-[8px] text-white/80 leading-relaxed mb-2">
-                      +350 XP | +250 CREDITS
+                       +350 XP | +250 CREDITS
                     </span>
                     <button
                       onClick={onRetreat}
@@ -366,7 +359,7 @@ export default function BattleView({
                 </div>
 
                 <div className="text-yellow-400 font-pixel text-[8px] text-center mt-1 animate-pulse tracking-tight select-none">
-                  TAP ANYWHERE TO STOP SLIDER!
+                  ATTACK THE ENEMY
                 </div>
               </div>
             )}

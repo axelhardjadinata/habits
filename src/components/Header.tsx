@@ -2,17 +2,20 @@ import { Coins } from "lucide-react";
 
 interface HeaderProps {
   credits: number;
+  userPhotoUrl?: string | null;
 }
 
-export default function Header({ credits }: HeaderProps) {
+export default function Header({ credits, userPhotoUrl }: HeaderProps) {
+  const defaultAvatar = "https://lh3.googleusercontent.com/aida/ADBb0ugnKdmczKzHQhPxmPLW44DkJnEzHyJJl1XZvy4--2KC4uxFLDSx_QNvy1_H-hzaMawRIdO_FhjyYP4lA3uRoIPniUJG5PNkz-Fsv7egkhqZkkC458Tce_OZkSWcEyXjfH6agR6KXhCWIHnhWWSaUfaS-7f7Xuaf-M7RaNyJ_1uGAXqJAoaO8f7lezcO-4sbvsD7NMAKB6j7ddD3sDD8bR7MQvryQFNfZmGE4LMU9Y8HIfpfy5WP46NJIZI";
+
   return (
-    <header className="fixed top-0 left-0 right-0 w-full z-50 flex justify-between items-center px-5 py-4 border-b-4 border-[#121312] bg-[#121312] shadow-[4px_4px_0px_0px_rgba(8,0,56,1)]">
+    <header className="absolute top-0 left-0 right-0 w-full z-50 flex justify-between items-center px-4 py-3 border-b-4 border-[#121312] bg-[#121312] shadow-[3px_3px_0px_0px_rgba(8,0,56,1)] shrink-0">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-full border-3 border-[#121312] overflow-hidden bg-[#3A9AFF] shrink-0">
           <img
             alt="Hero Avatar"
             className="w-full h-full object-cover"
-            src="https://lh3.googleusercontent.com/aida/ADBb0ugnKdmczKzHQhPxmPLW44DkJnEzHyJJl1XZvy4--2KC4uxFLDSx_QNvy1_H-hzaMawRIdO_FhjyYP4lA3uRoIPniUJG5PNkz-Fsv7egkhqZkkC458Tce_OZkSWcEyXjfH6agR6KXhCWIHnhWWSaUfaS-7f7Xuaf-M7RaNyJ_1uGAXqJAoaO8f7lezcO-4sbvsD7NMAKB6j7ddD3sDD8bR7MQvryQFNfZmGE4LMU9Y8HIfpfy5WP46NJIZI"
+            src={userPhotoUrl || defaultAvatar}
             referrerPolicy="no-referrer"
           />
         </div>

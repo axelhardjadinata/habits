@@ -71,7 +71,7 @@ export default function StatsView({
           </div>
           <div className="flex flex-col flex-grow">
             <h3 className="font-display-hero text-lg text-white uppercase tracking-wider">
-              VIGILANTE PATROL STREAK
+              EIGHT HOURS OF SLEEP STREAK
             </h3>
             <p className="font-body-md text-xs text-gray-300 italic font-medium">
               Current: 7 Days / Best: 14 Days
@@ -94,7 +94,7 @@ export default function StatsView({
           </div>
           <div className="flex flex-col flex-grow">
             <h3 className="font-display-hero text-lg text-white uppercase tracking-wider">
-              TELEPATHIC SHIELD STREAK
+              SCREEN FREE ZONE STREAK
             </h3>
             <p className="font-body-md text-xs text-gray-300 italic font-medium">
               Current: 3 Days / Best: 7 Days
@@ -112,7 +112,7 @@ export default function StatsView({
           </div>
           <div className="flex flex-col flex-grow">
             <h3 className="font-display-hero text-lg text-white uppercase tracking-wider">
-              ORACLE DATABASE STREAK
+              FOCUS STUDY STREAK
             </h3>
             <p className="font-body-md text-xs text-gray-300 italic font-medium">
               Current: {currentStreak} Days / Best: {maxStreak} Days

@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile state containing stats, character level, and habit progression tracking.",
+      "type": "object",
+      "properties": {
+        "xp": { "type": "number", "description": "The current experience points." },
+        "maxXp": { "type": "number", "description": "Experience points threshold to level up." },
+        "level": { "type": "number", "description": "User character level." },
+        "levelName": { "type": "string", "description": "Visual level title of the user profile." },
+        "credits": { "type": "number", "description": "Earned and spent credits balance." },
+        "currentStreak": { "type": "number", "description": "The current daily streak multiplier." },
+        "maxStreak": { "type": "number", "description": "The historic maximum streak accomplished." },
+        "totalCompleted": { "type": "number", "description": "The lifetime cumulative completed habits." },
+        "totalXpGained": { "type": "number", "description": "Lifetime cumulative experience points gained." },
+        "playerHp": { "type": "number", "description": "Active battle health points of player." },
+        "maxPlayerHp": { "type": "number", "description": "Maximum capacity of battle health points." },
+        "doubleXp": { "type": "boolean", "description": "Active state booster multiplying XP outputs." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server time of last profile modification." }
+      },
+      "required": [
+        "xp",
+        "maxXp",
+        "level",
+        "levelName",
+        "credits",
+        "currentStreak",
+        "maxStreak",
+        "totalCompleted",
+        "totalXpGained",
+        "playerHp",
+        "maxPlayerHp",
+        "doubleXp"
+      ]
+    },
+    "Habit": {
+      "title": "Habit",
+      "description": "Individual habit list structures linked to daily checklist updates.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "number": { "type": "number" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "xpReward": { "type": "number" },
+        "creditsReward": { "type": "number" },
+        "completedToday": { "type": "boolean" },
+        "streakCount": { "type": "number" },
+        "iconName": { "type": "string" }
+      },
+      "required": ["id", "number", "name", "category", "xpReward", "creditsReward", "completedToday", "streakCount", "iconName"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User game state and profile data indexed by firebase auth user id."
+    },
+    "/users/{userId}/habits/{habitId}": {
+      "schema": "Habit",
+      "description": "User individual habit progression entries."
+    }
+  }
+}

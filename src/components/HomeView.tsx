@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { Moon, Brain, Terminal, Zap, Shield, CheckCircle2, Circle } from "lucide-react";
 import { DailyHabit } from "../types";
+import AIApplications from "./AIApplications";
 
 interface HomeViewProps {
   xp: number;
@@ -10,6 +11,7 @@ interface HomeViewProps {
   onToggleHabit: (id: string) => void;
   onEnterBattle: () => void;
   doubleXp: boolean;
+  onCompleteHabitByAI: (habitNumber: number, xpReward: number, creditsReward: number, customMessage: string) => void;
 }
 
 export default function HomeView({
@@ -20,6 +22,7 @@ export default function HomeView({
   onToggleHabit,
   onEnterBattle,
   doubleXp,
+  onCompleteHabitByAI,
 }: HomeViewProps) {
   return (
     <main className="px-5 flex flex-col gap-6 mt-24 mb-24 w-full max-w-sm mx-auto">
@@ -161,16 +164,32 @@ export default function HomeView({
                   </div>
                 </div>
 
-                {/* Reward XP Badge */}
-                <div className={`flex items-center gap-1 border-2 px-2.5 py-1 rounded-lg shrink-0 relative z-10 transition-colors ${
-                  isCompleted 
-                    ? "bg-[#1C0770] border-green-600 text-green-400" 
-                    : "bg-[#1C0770] border-black text-white"
-                }`}>
-                  <span className={`font-display-hero text-lg ${isCompleted ? "text-green-400" : "text-[#3A9AFF]"}`}>
-                    +{habit.xpReward * (doubleXp ? 2 : 1)}
-                  </span>
-                  <span className="font-display-hero text-xs">XP</span>
+                {/* Rewards Cluster */}
+                <div className="flex flex-col gap-1 items-end shrink-0 relative z-10 font-sans">
+                  {/* Reward XP Badge */}
+                  <div className={`flex items-center gap-1 border-1.5 px-2 py-0.5 rounded-lg transition-colors ${
+                    isCompleted 
+                      ? "bg-[#1C0770]/80 border-green-600 text-green-400" 
+                      : "bg-[#1C0770]/60 border-slate-700 text-white"
+                  }`}>
+                    <span className={`font-display-hero text-xs ${isCompleted ? "text-green-400" : "text-[#3A9AFF]"}`}>
+                      +{habit.xpReward * (doubleXp ? 2 : 1)}
+                    </span>
+                    <span className="font-display-hero text-[9px] uppercase">XP</span>
+                  </div>
+
+                  {/* Reward Credits Badge */}
+                  <div className={`flex items-center gap-1 border-1.5 px-2 py-0.5 rounded-lg transition-colors ${
+                    isCompleted 
+                      ? "bg-[#1C0770]/80 border-green-600 text-green-400/80" 
+                      : "bg-[#1C0770]/60 border-slate-700 text-white"
+                  }`}>
+                    <Shield className="w-2.5 h-2.5 text-yellow-400 fill-yellow-400 shrink-0" />
+                    <span className={`font-display-hero text-xs ${isCompleted ? "text-green-400/80" : "text-yellow-400"}`}>
+                      +{habit.creditsReward}
+                    </span>
+                    <span className="font-display-hero text-[9px] uppercase">C</span>
+                  </div>
                 </div>
 
               </motion.div>
@@ -178,6 +197,9 @@ export default function HomeView({
           })}
         </div>
       </section>
+
+      {/* General Applications under Home screen */}
+      <AIApplications onCompleteHabitByAI={onCompleteHabitByAI} doubleXp={doubleXp} />
 
     </main>
   );

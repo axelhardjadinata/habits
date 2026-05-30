@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Volume2, Sun, Moon, Gift, Ticket, CircleAlert } from "lucide-react";
+import { Volume2, Sun, Moon, Gift, Ticket, CircleAlert, LogOut, User } from "lucide-react";
 
 interface SettingsViewProps {
   volume: number;
   setVolume: (v: number) => void;
   visualMode: "DARK" | "LIGHT";
   setVisualMode: (mode: "DARK" | "LIGHT") => void;
-  onRedeemCode: (code: string) => string; // returns feedback message
+  onRedeemCode: (code: string) => string | Promise<string>; // returns feedback message
+  userEmail?: string | null;
+  userDisplayName?: string | null;
+  onLogOut: () => void;
 }
 
 export default function SettingsView({
@@ -16,13 +19,16 @@ export default function SettingsView({
   visualMode,
   setVisualMode,
   onRedeemCode,
+  userEmail,
+  userDisplayName,
+  onLogOut,
 }: SettingsViewProps) {
   const [code, setCode] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const handleClaim = () => {
+  const handleClaim = async () => {
     if (!code.trim()) return;
-    const msg = onRedeemCode(code.trim().toUpperCase());
+    const msg = await onRedeemCode(code.trim().toUpperCase());
     setFeedback(msg);
     setCode("");
     setTimeout(() => setFeedback(null), 4000);
@@ -164,6 +170,40 @@ export default function SettingsView({
               </motion.div>
             )}
           </div>
+        </div>
+
+        {/* Secure User Session & Logout Card */}
+        <div className="comic-card p-5 border-[#FF3A5C]">
+          <div className="flex items-start gap-4 mb-4">
+            <User className="w-9 h-9 text-[#FF3A5C]" />
+            <div className="flex-1 text-left">
+              <h3 className="font-display-hero text-xl text-white uppercase italic tracking-wider">
+                VANGUARD ACCOUNT
+              </h3>
+              <p className="font-body-md text-xs text-gray-300 italic font-medium">
+                Authenticated Operator Session
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-black/30 p-3.5 comic-border rounded-xl text-left flex flex-col gap-1.5 mb-4 font-mono text-xs text-gray-300">
+            <div>
+              <span className="text-[#3A9AFF] font-bold uppercase mr-1">OPERATOR:</span>
+              <span className="text-white font-bold">{userDisplayName || "COSMIC GUARDIAN"}</span>
+            </div>
+            <div className="truncate">
+              <span className="text-[#3A9AFF] font-bold uppercase mr-1">ENCRYPT_ID:</span>
+              <span className="text-white tracking-widest">{userEmail || "anonymous@vanguard.org"}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={onLogOut}
+            className="w-full flex items-center justify-center gap-2.5 font-display-hero text-sm uppercase tracking-wider py-3 px-4 rounded-xl border-3 border-black comic-shadow bg-[#FF3A5C] hover:bg-white text-white hover:text-black transition-all cursor-pointer select-none"
+          >
+            <LogOut className="w-4 h-4 stroke-[2.5]" />
+            SIGN OUT PROTOCOL
+          </button>
         </div>
 
       </div>

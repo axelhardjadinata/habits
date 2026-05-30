@@ -87,31 +87,31 @@ export default function ShopView({
   const renderIcon = (type: ItemState["iconType"]) => {
     switch (type) {
       case "skin":
-        return <Sparkles className="w-10 h-10 text-yellow-400 animate-pulse" />;
+        return <Sparkles className="w-16 h-16 text-yellow-400 animate-pulse" />;
       case "shield":
         return (
           <img
             alt="Oracle Streak Shield"
-            className="w-10 h-10 object-contain"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
             src="https://lh3.googleusercontent.com/aida/ADBb0uh43cBNrDsxFjRvYG_eiYIGfGHIhCzMwf_Uch9dZBkHIe068Y9PMHU1tyXgQ3omi3Zyt9uuASTBj-yVhkFnfVUN0wnO2quQ7M9rbxWAqaA7Rl4Y3gM2tT5XaK3hsQl5bUOVYFNS_T1gFe2Yr4ZgzUJVJfP_bXZBcEocfHhUqOh8WzRY-imOeHpiKK4uw4f-BMfN_tg1VHNtbH7QHA8IYyS_1Yw2IQL9rcEofrAnEE5LWo7_rkS4OzV4xDw"
             referrerPolicy="no-referrer"
           />
         );
       case "boost":
-        return <Flame className="w-10 h-10 text-red-500 fill-red-500 animate-bounce" />;
+        return <Flame className="w-16 h-16 text-red-500 fill-red-500 animate-bounce" />;
       case "bubble":
-        return <Activity className="w-10 h-10 text-cyan-400" />;
+        return <Activity className="w-16 h-16 text-cyan-400 animate-pulse" />;
     }
   };
 
   return (
-    <main className="px-5 flex flex-col gap-8 mt-24 mb-24 w-full max-w-xl mx-auto">
+    <main className="px-4 flex flex-col gap-6 mt-24 mb-24 w-full max-w-xl mx-auto">
       
       <section className="text-center w-full">
-        <h2 className="font-display-hero text-4xl text-white tracking-widest uppercase italic transform -skew-x-6 text-stroke-black">
+        <h2 className="font-display-hero text-3xl text-white tracking-widest uppercase italic transform -skew-x-6 text-stroke-black">
           HEROIC SUPPLY SHOP
         </h2>
-        <p className="font-body-md text-xs italic text-blue-300 mt-1 select-none">
+        <p className="font-body-md text-[10px] italic text-blue-300 mt-1 select-none">
           Power up catalog for Vanguard Operatives
         </p>
       </section>
@@ -134,26 +134,26 @@ export default function ShopView({
         )}
       </AnimatePresence>
 
-      <section className="grid grid-cols-2 gap-4 w-full">
+      <section className="grid grid-cols-2 gap-3 w-full">
         {items.map((item) => (
           <article
             key={item.id}
-            className="bg-[#121312] border-3 border-[#3A9AFF] p-3 flex flex-col justify-between relative block-shadow group hover:-translate-y-1 transition-transform duration-200 aspect-[3/4.2] rounded-xl"
+            className="bg-[#121312] border-3 border-[#3A9AFF] p-2.5 flex flex-col justify-between relative block-shadow group hover:-translate-y-1 transition-transform duration-200 aspect-[3/4.6] rounded-xl"
           >
-            <div className="h-16 w-full bg-[#1C0770] comic-border rounded-lg cross-hatch flex items-center justify-center overflow-hidden relative shrink-0">
+            <div className="h-28 w-full bg-[#1C0770] comic-border rounded-lg cross-hatch flex items-center justify-center overflow-hidden relative shrink-0">
               {renderIcon(item.iconType)}
               {item.id === "xp_boost" && (
-                <span className="absolute bottom-1 right-2 font-display-hero text-orange-400 text-xs">
+                <span className="absolute bottom-1 right-2 bg-slate-900/90 border border-orange-500/50 px-1.5 py-0.5 rounded font-display-hero text-orange-400 text-[9px] uppercase tracking-wider">
                   2X XP
                 </span>
               )}
             </div>
 
-            <div className="flex flex-col flex-grow justify-center mt-2">
-              <h3 className="font-display-hero text-sm leading-tight text-white uppercase italic tracking-wider">
+            <div className="flex flex-col flex-grow justify-center mt-2.5">
+              <h3 className="font-display-hero text-[11px] leading-tight text-white uppercase italic tracking-wider">
                 {item.name}
               </h3>
-              <p className="font-body-md text-[10px] leading-relaxed text-gray-300 italic mt-1.5 line-clamp-3">
+              <p className="font-body-md text-[9px] leading-snug text-gray-400 italic mt-1 line-clamp-3">
                 {item.description}
               </p>
             </div>
@@ -161,7 +161,7 @@ export default function ShopView({
             <button
               onClick={() => handleBuy(item)}
               disabled={item.purchased && item.id === "streak_shield"}
-              className={`w-full font-display-hero text-sm uppercase py-1.5 rounded-lg border-2 border-black block-shadow-sm active:translate-y-0.5 active:shadow-none transition-all mt-2 flex items-center justify-center gap-1 ${
+              className={`w-full font-display-hero text-[10px] uppercase py-1.5 rounded-lg border-2 border-black block-shadow-sm active:scale-95 duration-100 ease-in-out transition-all mt-2.5 flex items-center justify-center gap-1 ${
                 item.purchased && item.id === "streak_shield"
                   ? "bg-green-600 text-white cursor-default"
                   : "bg-[#3A9AFF] hover:bg-white text-[#121212] cursor-pointer"
