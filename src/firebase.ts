@@ -3,8 +3,11 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
+// Read from injected window.firebaseConfig if available (forces bypassing .env), fallback to local file
+const activeConfig = (typeof window !== "undefined" && (window as any).firebaseConfig) || firebaseConfig;
+
+const app = initializeApp(activeConfig);
+export const db = getFirestore(app, activeConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
 export const auth = getAuth();
 
 // Error Handling Infrastructure following Firebase Skill Specification

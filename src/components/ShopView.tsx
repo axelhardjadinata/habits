@@ -84,11 +84,23 @@ export default function ShopView({
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const renderIcon = (type: ItemState["iconType"]) => {
-    switch (type) {
-      case "skin":
-        return <Sparkles className="w-16 h-16 text-yellow-400 animate-pulse" />;
-      case "shield":
+  const renderItemImage = (item: ItemState) => {
+    switch (item.id) {
+      case "skin_cosmic":
+        return (
+          <>
+            <img
+              alt="Cosmic Suit Background"
+              className="absolute inset-0 w-full h-full object-cover opacity-75 brightness-90 group-hover:scale-105 transition-transform duration-200"
+              src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=80"
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute inset-0 bg-[#0B024C]/60 mix-blend-multiply" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1C0770]/90 to-transparent" />
+            <Sparkles className="relative w-14 h-14 text-yellow-400 filter drop-shadow-[0_0_12px_rgba(234,179,8,0.9)] animate-pulse z-10" />
+          </>
+        );
+      case "streak_shield":
         return (
           <img
             alt="Oracle Streak Shield"
@@ -97,10 +109,36 @@ export default function ShopView({
             referrerPolicy="no-referrer"
           />
         );
-      case "boost":
-        return <Flame className="w-16 h-16 text-red-500 fill-red-500 animate-bounce" />;
-      case "bubble":
-        return <Activity className="w-16 h-16 text-cyan-400 animate-pulse" />;
+      case "xp_boost":
+        return (
+          <>
+            <img
+              alt="Booster Background"
+              className="absolute inset-0 w-full h-full object-cover opacity-75 brightness-90 group-hover:scale-105 transition-transform duration-200"
+              src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=80"
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute inset-0 bg-[#0B024C]/60 mix-blend-multiply" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1C0770]/90 to-transparent" />
+            <Flame className="relative w-14 h-14 text-red-500 fill-red-500 filter drop-shadow-[0_0_12px_rgba(239,68,68,0.9)] animate-bounce z-10" />
+          </>
+        );
+      case "bubble_shield":
+        return (
+          <>
+            <img
+              alt="Bubble Shield Background"
+              className="absolute inset-0 w-full h-full object-cover opacity-75 brightness-90 group-hover:scale-105 transition-transform duration-200"
+              src="https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=500&auto=format&fit=crop&q=80"
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute inset-0 bg-[#0B024C]/60 mix-blend-multiply" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1C0770]/90 to-transparent" />
+            <Activity className="relative w-14 h-14 text-cyan-400 filter drop-shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse z-10" />
+          </>
+        );
+      default:
+        return null;
     }
   };
 
@@ -140,10 +178,10 @@ export default function ShopView({
             key={item.id}
             className="bg-[#121312] border-3 border-[#3A9AFF] p-2.5 flex flex-col justify-between relative block-shadow group hover:-translate-y-1 transition-transform duration-200 aspect-[3/4.6] rounded-xl"
           >
-            <div className="h-28 w-full bg-[#1C0770] comic-border rounded-lg cross-hatch flex items-center justify-center overflow-hidden relative shrink-0">
-              {renderIcon(item.iconType)}
+            <div className="h-32 w-full bg-[#1C0770] comic-border rounded-lg cross-hatch flex items-center justify-center overflow-hidden relative shrink-0">
+              {renderItemImage(item)}
               {item.id === "xp_boost" && (
-                <span className="absolute bottom-1 right-2 bg-slate-900/90 border border-orange-500/50 px-1.5 py-0.5 rounded font-display-hero text-orange-400 text-[9px] uppercase tracking-wider">
+                <span className="absolute bottom-1 right-2 bg-slate-900/90 border border-orange-500/50 px-1.5 py-0.5 rounded font-display-hero text-orange-400 text-[9px] uppercase tracking-wider z-20">
                   2X XP
                 </span>
               )}

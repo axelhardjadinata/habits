@@ -13,7 +13,32 @@ import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { LogIn, ShieldAlert, Sparkles, Zap, User as UserIcon, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
+import tiredCivilianAvatar from "./assets/images/tired_civilian_1780135599052.png";
+import aspiringAgentAvatar from "./assets/images/aspiring_agent_1780135624655.png";
+import theInvincibleAvatar from "./assets/images/the_invincible_1780135642799.png";
+
 const googleProvider = new GoogleAuthProvider();
+
+export const getLevelTitle = (lvl: number): string => {
+  const cleanLvl = Math.max(1, Math.min(3, lvl));
+  if (cleanLvl === 1) return "LEVEL 1: THE TIRED CIVILIAN";
+  if (cleanLvl === 2) return "LEVEL 2: THE ASPIRING AGENT";
+  return "LEVEL 3: THE INVINCIBLE";
+};
+
+export const getLevelMaxHp = (lvl: number): number => {
+  const cleanLvl = Math.max(1, Math.min(3, lvl));
+  if (cleanLvl === 1) return 100;
+  if (cleanLvl === 2) return 150;
+  return 200;
+};
+
+export const getLevelAvatar = (lvl: number): string => {
+  const cleanLvl = Math.max(1, Math.min(3, lvl));
+  if (cleanLvl === 1) return tiredCivilianAvatar;
+  if (cleanLvl === 2) return aspiringAgentAvatar;
+  return theInvincibleAvatar;
+};
 
 export default function App() {
   // Navigation State
@@ -24,21 +49,21 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // Economic / Level state
-  const [xp, setXp] = useState(1250);
-  const [maxXp, setMaxXp] = useState(2000);
-  const [level, setLevel] = useState(3);
-  const [levelName, setLevelName] = useState("LEVEL 3: THE INVINCIBLE");
-  const [credits, setCredits] = useState(1250);
+  const [xp, setXp] = useState(0);
+  const [maxXp, setMaxXp] = useState(500);
+  const [level, setLevel] = useState(1);
+  const [levelName, setLevelName] = useState("LEVEL 1: THE TIRED CIVILIAN");
+  const [credits, setCredits] = useState(100);
 
   // Stats / Tracking counters
-  const [currentStreak, setCurrentStreak] = useState(14);
-  const [maxStreak, setMaxStreak] = useState(21);
-  const [totalCompleted, setTotalCompleted] = useState(780);
-  const [totalXpGained, setTotalXpGained] = useState(12500);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [maxStreak, setMaxStreak] = useState(0);
+  const [totalCompleted, setTotalCompleted] = useState(0);
+  const [totalXpGained, setTotalXpGained] = useState(0);
 
   // Active Combat player vitals
-  const [playerHp, setPlayerHp] = useState(20);
-  const [maxPlayerHp, setMaxPlayerHp] = useState(20);
+  const [playerHp, setPlayerHp] = useState(100);
+  const [maxPlayerHp, setMaxPlayerHp] = useState(100);
 
   // Shop booster flags
   const [doubleXp, setDoubleXp] = useState(false);
@@ -55,35 +80,35 @@ export default function App() {
     {
       id: "habit_1",
       number: 1,
-      name: "GET EIGHT HOURS OF SLEEP",
+      name: "SLEEP/SUNLIGHT SYNCHRONIZER",
       category: "SLEEP",
       xpReward: 25,
       creditsReward: 15,
       completedToday: false,
       streakCount: 7,
-      iconName: "bedtime",
+      iconName: "clock",
     },
     {
       id: "habit_2",
       number: 2,
-      name: "ONE HOUR SCREEN FREE ZONE",
-      category: "MIND",
-      xpReward: 35,
+      name: "THE FEYNMAN TUTOR",
+      category: "ACADEMIC",
+      xpReward: 50,
       creditsReward: 25,
       completedToday: false,
-      streakCount: 3,
-      iconName: "shield",
+      streakCount: 9,
+      iconName: "book",
     },
     {
       id: "habit_3",
       number: 3,
-      name: "FOCUS STUDY ZONE",
-      category: "ACADEMIC",
+      name: "BRAIN DUMP ORGANIZER",
+      category: "MIND",
       xpReward: 50,
       creditsReward: 40,
       completedToday: false,
       streakCount: 10,
-      iconName: "terminal",
+      iconName: "brain",
     },
     {
       id: "habit_4",
@@ -94,9 +119,65 @@ export default function App() {
       creditsReward: 30,
       completedToday: false,
       streakCount: 5,
-      iconName: "shield",
+      iconName: "utensils",
     },
   ]);
+
+  const migrateHabits = (loadedHabits: DailyHabit[]): DailyHabit[] => {
+    const targetHabits = [
+      {
+        id: "habit_1",
+        number: 1,
+        name: "SLEEP/SUNLIGHT SYNCHRONIZER",
+        category: "SLEEP" as const,
+        xpReward: 25,
+        creditsReward: 15,
+        iconName: "clock",
+      },
+      {
+        id: "habit_2",
+        number: 2,
+        name: "THE FEYNMAN TUTOR",
+        category: "ACADEMIC" as const,
+        xpReward: 50,
+        creditsReward: 25,
+        iconName: "book",
+      },
+      {
+        id: "habit_3",
+        number: 3,
+        name: "BRAIN DUMP ORGANIZER",
+        category: "MIND" as const,
+        xpReward: 50,
+        creditsReward: 40,
+        iconName: "brain",
+      },
+      {
+        id: "habit_4",
+        number: 4,
+        name: "MEET MEAL 3-COLOR RULE",
+        category: "FITNESS" as const,
+        xpReward: 30,
+        creditsReward: 30,
+        iconName: "utensils",
+      }
+    ];
+
+    return targetHabits.map(target => {
+      const existing = loadedHabits.find(h => h.id === target.id);
+      return {
+        id: target.id,
+        number: target.number,
+        name: target.name,
+        category: target.category,
+        xpReward: target.xpReward,
+        creditsReward: target.creditsReward,
+        iconName: target.iconName,
+        completedToday: existing ? existing.completedToday : false,
+        streakCount: existing ? existing.streakCount : 0
+      };
+    });
+  };
 
   // Auth Listener
   useEffect(() => {
@@ -128,19 +209,26 @@ export default function App() {
         if (snapshot.exists()) {
           const data = snapshot.data();
           setXp(data.xp ?? 0);
-          setMaxXp(data.maxXp ?? 2000);
+          setMaxXp(data.maxXp ?? 500);
           setLevel(data.level ?? 1);
-          setLevelName(data.levelName ?? "LEVEL 1: ROOKIE");
-          setCredits(data.credits ?? 0);
+          setLevelName(data.levelName ?? "LEVEL 1: THE TIRED CIVILIAN");
+          setCredits(data.credits ?? 100);
           setCurrentStreak(data.currentStreak ?? 0);
           setMaxStreak(data.maxStreak ?? 0);
           setTotalCompleted(data.totalCompleted ?? 0);
           setTotalXpGained(data.totalXpGained ?? 0);
-          setPlayerHp(data.playerHp ?? 20);
-          setMaxPlayerHp(data.maxPlayerHp ?? 20);
+          setPlayerHp(data.playerHp ?? 100);
+          setMaxPlayerHp(data.maxPlayerHp ?? 100);
           setDoubleXp(data.doubleXp ?? false);
           if (data.habits) {
-            setHabits(data.habits);
+            const migrated = migrateHabits(data.habits);
+            setHabits(migrated);
+            const needsSync = JSON.stringify(data.habits) !== JSON.stringify(migrated);
+            if (needsSync) {
+              setDoc(userDocRef, { habits: migrated }, { merge: true }).catch((err) => {
+                handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
+              });
+            }
           }
         } else {
           // Document does not exist yet. Initialize it with our state values.
@@ -211,16 +299,17 @@ export default function App() {
       await signOut(auth);
       setUser(null);
       // reset local states
-      setXp(1250);
-      setMaxXp(2000);
-      setLevel(3);
-      setLevelName("LEVEL 3: THE INVINCIBLE");
-      setCredits(1250);
-      setCurrentStreak(14);
-      setMaxStreak(21);
-      setTotalCompleted(780);
-      setTotalXpGained(12500);
-      setPlayerHp(20);
+      setXp(0);
+      setMaxXp(500);
+      setLevel(1);
+      setLevelName("LEVEL 1: THE TIRED CIVILIAN");
+      setCredits(100);
+      setCurrentStreak(0);
+      setMaxStreak(0);
+      setTotalCompleted(0);
+      setTotalXpGained(0);
+      setPlayerHp(100);
+      setMaxPlayerHp(100);
       setDoubleXp(false);
     } catch (err) {
       console.error("Signout failed:", err);
@@ -232,15 +321,18 @@ export default function App() {
     if (!user && xp >= maxXp) {
       setLevel((prevLevel) => {
         const nextLevel = prevLevel + 1;
-        if (nextLevel === 4) {
-          setLevelName("LEVEL 4: COSMIC GUARDIAN");
-        } else if (nextLevel >= 5) {
-          setLevelName(`LEVEL ${nextLevel}: VANGUARD COMMANDER`);
-        }
+        const nextTitle = getLevelTitle(nextLevel);
+        const nextMaxHp = getLevelMaxHp(nextLevel);
+        setLevelName(nextTitle);
+        setMaxPlayerHp(nextMaxHp);
+        setPlayerHp(nextMaxHp);
         return nextLevel;
       });
-      setXp((prevXp) => prevXp - maxXp);
-      setMaxXp((prevMax) => Math.floor(prevMax * 1.25));
+      setXp((prevXp) => {
+        const val = prevXp - maxXp;
+        return val >= 0 ? val : 0;
+      });
+      setMaxXp(500);
     }
   }, [xp, maxXp, user]);
 
@@ -278,16 +370,15 @@ export default function App() {
 
     let nextLevel = level;
     let nextLevelName = levelName;
-    let nextMaxXp = maxXp;
+    let nextMaxHp = maxPlayerHp;
+    let nextPlayerHpVal = playerHp;
+    let nextMaxXp = 500;
     if (nextXp >= nextMaxXp) {
       nextLevel = level + 1;
-      if (nextLevel === 4) {
-        nextLevelName = "LEVEL 4: COSMIC GUARDIAN";
-      } else if (nextLevel >= 5) {
-        nextLevelName = `LEVEL ${nextLevel}: VANGUARD COMMANDER`;
-      }
+      nextLevelName = getLevelTitle(nextLevel);
+      nextMaxHp = getLevelMaxHp(nextLevel);
+      nextPlayerHpVal = nextMaxHp;
       nextXp = nextXp - nextMaxXp;
-      nextMaxXp = Math.floor(nextMaxXp * 1.25);
     }
 
     const nextHabits = habits.map((h) => (h.id === id ? { ...h, completedToday: !wasCompleted } : h));
@@ -303,6 +394,8 @@ export default function App() {
         totalXpGained: nextTotalXp,
         currentStreak: nextCurrentStreak,
         maxStreak: nextMaxStreak,
+        playerHp: nextPlayerHpVal,
+        maxPlayerHp: nextMaxHp,
         habits: nextHabits,
       });
     } else {
@@ -315,6 +408,8 @@ export default function App() {
       setTotalXpGained(nextTotalXp);
       setCurrentStreak(nextCurrentStreak);
       setMaxStreak(nextMaxStreak);
+      setPlayerHp(nextPlayerHpVal);
+      setMaxPlayerHp(nextMaxHp);
       setHabits(nextHabits);
     }
   };
@@ -342,19 +437,21 @@ export default function App() {
 
     let nextLevel = level;
     let nextLevelName = levelName;
-    let nextMaxXp = maxXp;
+    let nextMaxHp = maxPlayerHp;
+    let nextPlayerHpVal = playerHp;
+    let nextMaxXp = 500;
 
     if (nextXp >= nextMaxXp) {
       nextLevel = level + 1;
-      if (nextLevel === 4) {
-        nextLevelName = "LEVEL 4: COSMIC GUARDIAN";
-      } else if (nextLevel >= 5) {
-        nextLevelName = `LEVEL ${nextLevel}: VANGUARD COMMANDER`;
-      }
+      nextLevelName = getLevelTitle(nextLevel);
+      nextMaxHp = getLevelMaxHp(nextLevel);
+      nextPlayerHpVal = nextMaxHp;
       setXp(nextXp - nextMaxXp);
-      setMaxXp(Math.floor(nextMaxXp * 1.25));
+      setMaxXp(500);
       setLevel(nextLevel);
       setLevelName(nextLevelName);
+      setPlayerHp(nextPlayerHpVal);
+      setMaxPlayerHp(nextMaxHp);
     } else {
       setXp(nextXp);
     }
@@ -367,12 +464,14 @@ export default function App() {
     if (user && user.uid !== "local_guest_user") {
       updateFirebaseDoc({
         xp: nextXp >= nextMaxXp ? nextXp - nextMaxXp : nextXp,
-        maxXp: nextXp >= nextMaxXp ? Math.floor(nextMaxXp * 1.25) : nextMaxXp,
+        maxXp: 500,
         level: nextLevel,
         levelName: nextLevelName,
         totalXpGained: nextTotalXp,
         credits: nextCredits,
         totalCompleted: nextTotalCompleted,
+        playerHp: nextPlayerHpVal,
+        maxPlayerHp: nextMaxHp,
         habits: nextHabits,
       });
     }
@@ -437,32 +536,35 @@ export default function App() {
     let nextXp = xp + amount;
     const nextTotalXp = totalXpGained + amount;
     let nextLevel = level;
-    let nextMaxXp = maxXp;
+    let nextMaxXp = 500;
     let nextLevelName = levelName;
+    let nextMaxHp = maxPlayerHp;
+    let nextPlayerHpVal = playerHp;
     if (nextXp >= nextMaxXp) {
       nextLevel = level + 1;
-      if (nextLevel === 4) {
-        nextLevelName = "LEVEL 4: COSMIC GUARDIAN";
-      } else if (nextLevel >= 5) {
-        nextLevelName = `LEVEL ${nextLevel}: VANGUARD COMMANDER`;
-      }
+      nextLevelName = getLevelTitle(nextLevel);
+      nextMaxHp = getLevelMaxHp(nextLevel);
+      nextPlayerHpVal = nextMaxHp;
       nextXp = nextXp - nextMaxXp;
-      nextMaxXp = Math.floor(nextMaxXp * 1.25);
     }
     if (user && user.uid !== "local_guest_user") {
       updateFirebaseDoc({
         xp: nextXp,
-        maxXp: nextMaxXp,
+        maxXp: 500,
         level: nextLevel,
         levelName: nextLevelName,
         totalXpGained: nextTotalXp,
+        playerHp: nextPlayerHpVal,
+        maxPlayerHp: nextMaxHp,
       });
     } else {
       setXp(nextXp);
-      setMaxXp(nextMaxXp);
+      setMaxXp(500);
       setLevel(nextLevel);
       setLevelName(nextLevelName);
       setTotalXpGained(nextTotalXp);
+      setPlayerHp(nextPlayerHpVal);
+      setMaxPlayerHp(nextMaxHp);
     }
   };
 
@@ -508,6 +610,25 @@ export default function App() {
       updateFirebaseDoc({ doubleXp: true });
     } else {
       setDoubleXp(true);
+    }
+  };
+
+  const handleInstantLevelUp = () => {
+    const nextLevel = level >= 3 ? 1 : level + 1;
+    const nextHp = getLevelMaxHp(nextLevel);
+    const nextLevelName = getLevelTitle(nextLevel);
+    if (user && user.uid !== "local_guest_user") {
+      updateFirebaseDoc({
+        level: nextLevel,
+        levelName: nextLevelName,
+        playerHp: nextHp,
+        maxPlayerHp: nextHp,
+      });
+    } else {
+      setLevel(nextLevel);
+      setLevelName(nextLevelName);
+      setPlayerHp(nextHp);
+      setMaxPlayerHp(nextHp);
     }
   };
 
@@ -600,7 +721,7 @@ export default function App() {
       <div className={`relative w-full max-w-[480px] h-screen md:h-[840px] md:max-h-[92vh] md:rounded-[3rem] md:border-[12px] md:border-[#1C0770] md:shadow-[#3A9AFF]/30 md:shadow-2xl overflow-hidden flex flex-col ${visualMode === "LIGHT" ? "bg-stone-100 text-[#121312]" : "bg-[#121312] text-white"}`}>
         
         {/* Absolute header pinned inside the container */}
-        <Header credits={credits} userPhotoUrl={user.photoURL} />
+        <Header credits={credits} userPhotoUrl={getLevelAvatar(level)} onInstantLevelUp={handleInstantLevelUp} />
 
         {/* Scrollable middle container */}
         <div className="flex-1 overflow-y-auto pt-16 pb-20 scrollbar-none animate-fade-in relative">
@@ -614,6 +735,8 @@ export default function App() {
               onEnterBattle={() => setActiveView("battle")}
               doubleXp={doubleXp}
               onCompleteHabitByAI={handleCompleteHabitByAI}
+              avatarUrl={getLevelAvatar(level)}
+              onInstantLevelUp={handleInstantLevelUp}
             />
           )}
 
@@ -623,6 +746,9 @@ export default function App() {
               maxStreak={maxStreak}
               totalCompleted={totalCompleted}
               totalXpGained={totalXpGained}
+              avatarUrl={getLevelAvatar(level)}
+              level={level}
+              levelName={levelName}
             />
           )}
 
