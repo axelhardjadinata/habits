@@ -7,6 +7,7 @@ interface ShopViewProps {
   setCredits: React.Dispatch<React.SetStateAction<number>>;
   onPurchaseBoost: () => void;
   onHeal: (amount: number) => void;
+  doubleXp?: boolean;
 }
 
 interface ItemState {
@@ -23,6 +24,7 @@ export default function ShopView({
   setCredits,
   onPurchaseBoost,
   onHeal,
+  doubleXp = false,
 }: ShopViewProps) {
   const [items, setItems] = useState<ItemState[]>([
     {
@@ -173,49 +175,52 @@ export default function ShopView({
       </AnimatePresence>
 
       <section className="grid grid-cols-2 gap-3 w-full">
-        {items.map((item) => (
-          <article
-            key={item.id}
-            className="bg-[#121312] border-3 border-[#3A9AFF] p-2.5 flex flex-col justify-between relative block-shadow group hover:-translate-y-1 transition-transform duration-200 aspect-[3/4.6] rounded-xl"
-          >
-            <div className="h-32 w-full bg-[#1C0770] comic-border rounded-lg cross-hatch flex items-center justify-center overflow-hidden relative shrink-0">
-              {renderItemImage(item)}
-              {item.id === "xp_boost" && (
-                <span className="absolute bottom-1 right-2 bg-slate-900/90 border border-orange-500/50 px-1.5 py-0.5 rounded font-display-hero text-orange-400 text-[9px] uppercase tracking-wider z-20">
-                  2X XP
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-col flex-grow justify-center mt-2.5">
-              <h3 className="font-display-hero text-[11px] leading-tight text-white uppercase italic tracking-wider">
-                {item.name}
-              </h3>
-              <p className="font-body-md text-[9px] leading-snug text-gray-400 italic mt-1 line-clamp-3">
-                {item.description}
-              </p>
-            </div>
-
-            <button
-              onClick={() => handleBuy(item)}
-              disabled={item.purchased && item.id === "streak_shield"}
-              className={`w-full font-display-hero text-[10px] uppercase py-1.5 rounded-lg border-2 border-black block-shadow-sm active:scale-95 duration-100 ease-in-out transition-all mt-2.5 flex items-center justify-center gap-1 ${
-                item.purchased && item.id === "streak_shield"
-                  ? "bg-green-600 text-white cursor-default"
-                  : "bg-[#3A9AFF] hover:bg-white text-[#121212] cursor-pointer"
-              }`}
+        {items.map((item) => {
+          const isOwned = item.id === "xp_boost" ? doubleXp : (item.purchased && item.id === "streak_shield");
+          return (
+            <article
+              key={item.id}
+              className="bg-[#121312] border-3 border-[#3A9AFF] p-2.5 flex flex-col justify-between relative block-shadow group hover:-translate-y-1 transition-transform duration-200 aspect-[3/4.6] rounded-xl"
             >
-              {item.purchased && item.id === "streak_shield" ? (
-                <>
-                  <Check className="w-4 h-4 shrink-0" />
-                  OWNED
-                </>
-              ) : (
-                `[ ${item.cost} C ]`
-              )}
-            </button>
-          </article>
-        ))}
+              <div className="h-32 w-full bg-[#1C0770] comic-border rounded-lg cross-hatch flex items-center justify-center overflow-hidden relative shrink-0">
+                {renderItemImage(item)}
+                {item.id === "xp_boost" && (
+                  <span className="absolute bottom-1 right-2 bg-slate-900/90 border border-orange-500/50 px-1.5 py-0.5 rounded font-display-hero text-orange-400 text-[9px] uppercase tracking-wider z-20">
+                    2X XP
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-col flex-grow justify-center mt-2.5">
+                <h3 className="font-display-hero text-[11px] leading-tight text-white uppercase italic tracking-wider">
+                  {item.name}
+                </h3>
+                <p className="font-body-md text-[9px] leading-snug text-gray-400 italic mt-1 line-clamp-3">
+                  {item.description}
+                </p>
+              </div>
+
+              <button
+                onClick={() => handleBuy(item)}
+                disabled={isOwned}
+                className={`w-full font-display-hero text-[10px] uppercase py-1.5 rounded-lg border-2 border-black block-shadow-sm active:scale-95 duration-100 ease-in-out transition-all mt-2.5 flex items-center justify-center gap-1 ${
+                  isOwned
+                    ? "bg-green-600 text-white cursor-default"
+                    : "bg-[#3A9AFF] hover:bg-white text-[#121212] cursor-pointer"
+                }`}
+              >
+                {isOwned ? (
+                  <>
+                    <Check className="w-4 h-4 shrink-0" />
+                    {item.id === "xp_boost" ? "ACTIVE [2X]" : "OWNED"}
+                  </>
+                ) : (
+                  `[ ${item.cost} C ]`
+                )}
+              </button>
+            </article>
+          );
+        })}
       </section>
 
     </main>

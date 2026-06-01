@@ -1,6 +1,6 @@
 {
   "name": "Hero Habit",
   "description": "A gamified fitness and tracking application where daily habits power up your hero for real-time battle against gothic villains.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["camera", "microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

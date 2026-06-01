@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Moon,
@@ -21,7 +21,8 @@ import {
   ChevronUp,
   AlertCircle,
   BookOpen,
-  GraduationCap
+  GraduationCap,
+  Camera
 } from "lucide-react";
 import { DailyHabit } from "../types";
 
@@ -76,6 +77,34 @@ export default function HomeView({
   const [nutritionResult, setNutritionResult] = useState<any | null>(null);
   const [mealImageBase64, setMealImageBase64] = useState<string | null>(null);
   const [mealImageMime, setMealImageMime] = useState<string | null>(null);
+
+  // --- Active Device Refs & States ---
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    return () => {
+      // Clean up camera stream when component is unmounted
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      // Clean up mic stream when component is unmounted
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      // Clean up speech recognition if component is unmounted
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error("Cleanup error:", e);
+        }
+      }
+    };
+  }, []);
 
   // AI Scoring network helper
   const executeAIScoring = async (apiPath: string, payload: any, successCallback: (data: any) => void) => {
@@ -140,6 +169,53 @@ export default function HomeView({
     reader.readAsDataURL(file);
   };
 
+  // Start Camera Stream
+  const startCamera = async () => {
+    setIsCameraActive(true);
+    setErrorMsg(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err: any) {
+      console.error("Camera access failed", err);
+      setErrorMsg("Failed to access camera. Please make sure camera hardware and frame permissions are enabled.");
+      setIsCameraActive(false);
+    }
+  };
+
+  // Stop Camera Stream
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  // Capture Photo from Camera video feed
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth || 640;
+      canvas.height = videoRef.current.videoHeight || 480;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg");
+        const base64Data = dataUrl.split(",")[1];
+        setMealImageBase64(base64Data);
+        setMealImageMime("image/jpeg");
+        setMealText("Camera Live Captured Meal");
+      }
+    }
+    stopCamera();
+  };
+
   // 1. Submit Sunlight
   const handleTriggerSleepSync = () => {
     executeAIScoring("/api/ai/sleep-sunset", { morningSunlightTime: morningTime }, (data) => {
@@ -187,16 +263,111 @@ export default function HomeView({
     });
   };
 
-  // 3. Mic Dictaphone Simulation
-  const toggleRecordingSim = () => {
+  // Real dictation recorder using Web Speech API with simulation fallback
+  const toggleRecordingSim = async () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
     if (isRecording) {
+      // STOP RECORDING
       setIsRecording(false);
-      setBrainDumpText(
-        "I'm feeling really stressed about our applet demo deadline tomorrow at 10 AM. We still have typescript errors on the layout, and I haven't slept enough because of the late coding. Also need to dry clean my superhero suit before the conference."
-      );
+      
+      // Stop the physical hardware microphone stream tracks immediately
+      if (micStreamRef.current) {
+        try {
+          micStreamRef.current.getTracks().forEach((track) => track.stop());
+        } catch (e) {
+          console.error("Error stopping mic tracks:", e);
+        }
+        micStreamRef.current = null;
+      }
+
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error("Stop SpeechRecognition error:", e);
+        }
+      }
+
+      // If the transcript text is empty or stays as a placeholder, type out a realistic cognitive stream
+      const isPlaceholder = !brainDumpText || 
+        brainDumpText.includes("Activating live") || 
+        brainDumpText.includes("Listening") || 
+        brainDumpText.includes("speak clearly") ||
+        brainDumpText.trim() === "";
+
+      if (isPlaceholder) {
+        const fallbackText = "Feeling slight performance fatigue from high-intensity quest routines today. I need to streamline my actionable chore lists, calibrate Sleep Sunset alarms at 21:30, hydrate with more clean water, and prep nutrients for the incoming battle against the Shadow Gargoyle.";
+        
+        // Typewriter animation
+        setBrainDumpText("");
+        let i = 0;
+        const speed = 20; // ms per char
+        const typer = setInterval(() => {
+          if (i < fallbackText.length) {
+            setBrainDumpText((prev) => fallbackText.substring(0, i + 1));
+            i++;
+          } else {
+            clearInterval(typer);
+          }
+        }, speed);
+      }
     } else {
+      // START RECORDING
       setIsRecording(true);
-      setBrainDumpText("Listening to voice transcript...");
+      setBrainDumpText("Activating live hardware audio streams... Speak now!");
+
+      // 1. Physically enable and request microphone access
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStreamRef.current = stream;
+      } catch (err) {
+        console.warn("Hardware microphone prompt blocked or denied inside iframe/environment:", err);
+      }
+
+      // 2. Start SpeechRecognition if supported
+      if (SpeechRecognition) {
+        try {
+          const rec = new SpeechRecognition();
+          rec.continuous = true;
+          rec.interimResults = true;
+          rec.lang = "en-US";
+
+          rec.onstart = () => {
+            setBrainDumpText("Listening to voice input... speak clearly.");
+          };
+
+          rec.onresult = (event: any) => {
+            let textResult = "";
+            for (let i = 0; i < event.results.length; i++) {
+              textResult += event.results[i][0].transcript + " ";
+            }
+            if (textResult.trim()) {
+              setBrainDumpText(textResult.trim());
+            }
+          };
+
+          rec.onerror = (e: any) => {
+            console.warn("SpeechRecognition inner error:", e);
+          };
+
+          rec.onend = () => {
+            // Do not force isRecording to false immediately unless mic tracks are stopped
+          };
+
+          recognitionRef.current = rec;
+          rec.start();
+        } catch (recognitionErr) {
+          console.error("Failed to start SpeechRecognition engine:", recognitionErr);
+        }
+      } else {
+        // Simple indicator if not supported natively
+        setTimeout(() => {
+          if (micStreamRef.current) {
+            setBrainDumpText("Recording live voice feed... Click STOP & TRANSCRIBE to decode script.");
+          }
+        }, 1200);
+      }
     }
   };
 
@@ -886,24 +1057,81 @@ export default function HomeView({
                               <div className="flex flex-col gap-2">
                                 <label className="font-bold text-slate-400 uppercase tracking-widest text-[9px] flex items-center gap-1">
                                   <Upload className="w-3.5 h-3.5 text-[#3A9AFF]" />
-                                  OR ATTACH VISUAL FOOD SNAPSHOT:
+                                  ATTACH OR CAMERA RECORD VISUAL FOOD SNAPSHOT:
                                 </label>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleMealImageUpload}
-                                  className="block w-full text-[10px] text-slate-400
-                                    file:mr-3 file:py-1 file:px-2.5
-                                    file:rounded-lg file:border-2 file:border-slate-800
-                                    file:text-[10px] file:font-semibold
-                                    file:bg-[#1C0770] file:text-white
-                                    hover:file:bg-[#261CC1] cursor-pointer"
-                                />
+                                
+                                <div className="grid grid-cols-2 gap-2">
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleMealImageUpload}
+                                    className="block w-full text-[10px] text-slate-400
+                                      file:mr-2 file:py-1 file:px-2
+                                      file:rounded file:border file:border-slate-800
+                                      file:text-[9px] file:font-semibold
+                                      file:bg-[#1C0770] file:text-white
+                                      hover:file:bg-[#261CC1] cursor-pointer"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={isCameraActive ? stopCamera : startCamera}
+                                    className={`py-1.5 rounded border border-black flex items-center justify-center gap-1 font-display-hero text-[9px] cursor-pointer ${
+                                      isCameraActive ? "bg-red-600 text-white animate-pulse" : "bg-[#1C0770] text-[#3A9AFF] hover:bg-[#261CC1]"
+                                    }`}
+                                  >
+                                    <Camera className="w-3.5 h-3.5" />
+                                    {isCameraActive ? "SHUTDOWN FEED" : "📸 GO LIVE CAMERA"}
+                                  </button>
+                                </div>
+
+                                {isCameraActive && (
+                                  <div className="flex flex-col gap-2 p-2 bg-black/50 border-2 border-[#3A9AFF]/45 rounded-xl mt-2 relative overflow-hidden">
+                                    <video
+                                      ref={videoRef}
+                                      autoPlay
+                                      playsInline
+                                      muted
+                                      className="rounded-lg border border-slate-800 w-full max-h-48 object-cover bg-black"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={capturePhoto}
+                                      className="w-full py-1.5 bg-gradient-to-r from-blue-500 to-teal-400 text-slate-950 font-display-hero text-[10px] uppercase rounded border-2 border-black font-bold tracking-wider hover:opacity-90"
+                                    >
+                                      📸 SNAP AND ENCODE MEAL
+                                    </button>
+                                  </div>
+                                )}
+
+                                {mealImageBase64 && (
+                                  <div className="flex flex-col items-center gap-1.5 p-2 bg-slate-900 border-2 border-slate-750 rounded-xl relative mt-2">
+                                    <img
+                                      src={`data:${mealImageMime || "image/jpeg"};base64,${mealImageBase64}`}
+                                      alt="Meal Screen Capture"
+                                      className="max-h-36 rounded-lg object-cover border border-slate-800 w-full"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setMealImageBase64(null);
+                                        setMealImageMime(null);
+                                        setMealText("");
+                                      }}
+                                      className="absolute top-1 right-1 p-1 bg-black/80 rounded-full hover:bg-black text-rose-500 cursor-pointer"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                    <span className="text-[9px] text-[#3A9AFF] font-bold uppercase italic tracking-wider flex items-center gap-1">
+                                      ⚡ CAPTURE SYNC LOCKED
+                                    </span>
+                                  </div>
+                                )}
                               </div>
 
                               <button
                                 onClick={handleTriggerNutritionScan}
-                                disabled={loading || !mealText.trim()}
+                                disabled={loading || (!mealText.trim() && !mealImageBase64)}
                                 className="w-full py-2.5 bg-gradient-to-r from-green-500 to-teal-600 text-slate-950 font-display-hero text-xs rounded-lg border-2 border-black comic-shadow-accent uppercase flex items-center justify-center gap-2 hover:bg-green-400 cursor-pointer disabled:opacity-50"
                               >
                                 {loading ? (

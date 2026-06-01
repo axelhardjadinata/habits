@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Header from "./components/Header";
 import BottomNavBar from "./components/BottomNavBar";
 import HomeView from "./components/HomeView";
@@ -48,9 +48,25 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  const hasResetForSession = useRef(false);
+
+  // Set up an effect to reset hasResetForSession when user changes or becomes null
+  useEffect(() => {
+    if (!user) {
+      hasResetForSession.current = false;
+    }
+  }, [user]);
+
+  // Force sign out of Firebase Auth upon first load of the application so that they always start back from the beginning needing to sign in
+  useEffect(() => {
+    signOut(auth).catch((err) => {
+      console.warn("Initial sign out failed:", err);
+    });
+  }, []);
+
   // Economic / Level state
   const [xp, setXp] = useState(0);
-  const [maxXp, setMaxXp] = useState(500);
+  const [maxXp, setMaxXp] = useState(300);
   const [level, setLevel] = useState(1);
   const [levelName, setLevelName] = useState("LEVEL 1: THE TIRED CIVILIAN");
   const [credits, setCredits] = useState(100);
@@ -67,6 +83,11 @@ export default function App() {
 
   // Shop booster flags
   const [doubleXp, setDoubleXp] = useState(false);
+
+  // Persistent Multi-stage Boss progression
+  const [currentBossIndex, setCurrentBossIndex] = useState(0);
+  const [currentBossHp, setCurrentBossHp] = useState<number | null>(null);
+  const [triBossChampion, setTriBossChampion] = useState(false);
 
   // Tactical notification toast for AI Core events
   const [vanguardNotification, setVanguardNotification] = useState<string | null>(null);
@@ -209,7 +230,7 @@ export default function App() {
         if (snapshot.exists()) {
           const data = snapshot.data();
           setXp(data.xp ?? 0);
-          setMaxXp(data.maxXp ?? 500);
+          setMaxXp(data.maxXp ?? 300);
           setLevel(data.level ?? 1);
           setLevelName(data.levelName ?? "LEVEL 1: THE TIRED CIVILIAN");
           setCredits(data.credits ?? 100);
@@ -220,18 +241,35 @@ export default function App() {
           setPlayerHp(data.playerHp ?? 100);
           setMaxPlayerHp(data.maxPlayerHp ?? 100);
           setDoubleXp(data.doubleXp ?? false);
+          setCurrentBossIndex(data.currentBossIndex ?? 0);
+          setCurrentBossHp(data.currentBossHp ?? null);
+          setTriBossChampion(data.triBossChampion ?? false);
           if (data.habits) {
-            const migrated = migrateHabits(data.habits);
-            setHabits(migrated);
-            const needsSync = JSON.stringify(data.habits) !== JSON.stringify(migrated);
-            if (needsSync) {
+            let migrated = migrateHabits(data.habits);
+            
+            // If we have not reset the habits for this session yet, force all completedToday to false
+            if (!hasResetForSession.current) {
+              hasResetForSession.current = true;
+              migrated = migrated.map((h) => ({ ...h, completedToday: false }));
               setDoc(userDocRef, { habits: migrated }, { merge: true }).catch((err) => {
                 handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
               });
             }
+
+            setHabits(migrated);
+            
+            if (hasResetForSession.current) {
+              const needsSync = JSON.stringify(data.habits) !== JSON.stringify(migrated);
+              if (needsSync) {
+                setDoc(userDocRef, { habits: migrated }, { merge: true }).catch((err) => {
+                  handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
+                });
+              }
+            }
           }
         } else {
           // Document does not exist yet. Initialize it with our state values.
+          const initialHabits = habits.map((h) => ({ ...h, completedToday: false }));
           const initialProfile = {
             xp,
             maxXp,
@@ -245,8 +283,12 @@ export default function App() {
             playerHp,
             maxPlayerHp,
             doubleXp,
-            habits,
+            currentBossIndex: 0,
+            currentBossHp: null,
+            triBossChampion: false,
+            habits: initialHabits,
           };
+          hasResetForSession.current = true;
           setDoc(userDocRef, initialProfile).catch((err) => {
             handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
           });
@@ -300,7 +342,7 @@ export default function App() {
       setUser(null);
       // reset local states
       setXp(0);
-      setMaxXp(500);
+      setMaxXp(300);
       setLevel(1);
       setLevelName("LEVEL 1: THE TIRED CIVILIAN");
       setCredits(100);
@@ -318,7 +360,7 @@ export default function App() {
 
   // Level Up Check for non-logged fallback. (When logged in, Firestore onSnapshot handles leveling up automatically)
   useEffect(() => {
-    if (!user && xp >= maxXp) {
+    if (!user && level < 3 && xp >= maxXp) {
       setLevel((prevLevel) => {
         const nextLevel = prevLevel + 1;
         const nextTitle = getLevelTitle(nextLevel);
@@ -328,13 +370,12 @@ export default function App() {
         setPlayerHp(nextMaxHp);
         return nextLevel;
       });
-      setXp((prevXp) => {
-        const val = prevXp - maxXp;
-        return val >= 0 ? val : 0;
-      });
-      setMaxXp(500);
+      setXp(0);
+      setMaxXp(300);
+    } else if (!user && level === 3 && xp > 300) {
+      setXp(300);
     }
-  }, [xp, maxXp, user]);
+  }, [xp, maxXp, user, level]);
 
   const handleToggleHabit = (id: string) => {
     const habit = habits.find((h) => h.id === id);
@@ -352,7 +393,11 @@ export default function App() {
     let nextMaxStreak = maxStreak;
 
     if (!wasCompleted) {
-      nextXp = xp + xpModifier;
+      if (level === 3) {
+        nextXp = Math.min(300, xp + xpModifier);
+      } else {
+        nextXp = xp + xpModifier;
+      }
       nextTotalXp = totalXpGained + xpModifier;
       nextCredits = credits + creditsModifier;
       nextTotalCompleted = totalCompleted + 1;
@@ -361,7 +406,11 @@ export default function App() {
         nextMaxStreak = nextCurrentStreak;
       }
     } else {
-      nextXp = Math.max(0, xp - xpModifier);
+      if (level === 3 && xp === 300) {
+        nextXp = 300;
+      } else {
+        nextXp = Math.max(0, xp - xpModifier);
+      }
       nextTotalXp = Math.max(0, totalXpGained - xpModifier);
       nextCredits = Math.max(0, credits - creditsModifier);
       nextTotalCompleted = Math.max(0, totalCompleted - 1);
@@ -372,16 +421,30 @@ export default function App() {
     let nextLevelName = levelName;
     let nextMaxHp = maxPlayerHp;
     let nextPlayerHpVal = playerHp;
-    let nextMaxXp = 500;
+    let nextMaxXp = 300;
     if (nextXp >= nextMaxXp) {
-      nextLevel = level + 1;
-      nextLevelName = getLevelTitle(nextLevel);
-      nextMaxHp = getLevelMaxHp(nextLevel);
-      nextPlayerHpVal = nextMaxHp;
-      nextXp = nextXp - nextMaxXp;
+      if (level >= 3) {
+        nextLevel = 3;
+        nextLevelName = getLevelTitle(3);
+        nextXp = 300;
+      } else {
+        nextLevel = level + 1;
+        nextLevelName = getLevelTitle(nextLevel);
+        nextMaxHp = getLevelMaxHp(nextLevel);
+        nextPlayerHpVal = nextMaxHp;
+        nextXp = 0;
+      }
     }
 
-    const nextHabits = habits.map((h) => (h.id === id ? { ...h, completedToday: !wasCompleted } : h));
+    const nextHabits = habits.map((h) =>
+      h.id === id
+        ? {
+            ...h,
+            completedToday: !wasCompleted,
+            streakCount: Math.max(0, h.streakCount + (wasCompleted ? -1 : 1)),
+          }
+        : h
+    );
 
     if (user && user.uid !== "local_guest_user") {
       updateFirebaseDoc({
@@ -430,7 +493,10 @@ export default function App() {
       h.number === habitNumber ? { ...h, completedToday: true, streakCount: h.streakCount + (isAlreadyDone ? 0 : 1) } : h
     );
 
-    const nextXp = xp + finalXpReward;
+    let nextXp = xp + finalXpReward;
+    if (level === 3) {
+      nextXp = Math.min(300, xp + finalXpReward);
+    }
     const nextTotalXp = totalXpGained + finalXpReward;
     const nextCredits = credits + creditsReward;
     const nextTotalCompleted = totalCompleted + (isAlreadyDone ? 0 : 1);
@@ -439,19 +505,29 @@ export default function App() {
     let nextLevelName = levelName;
     let nextMaxHp = maxPlayerHp;
     let nextPlayerHpVal = playerHp;
-    let nextMaxXp = 500;
+    let nextMaxXp = 300;
 
     if (nextXp >= nextMaxXp) {
-      nextLevel = level + 1;
-      nextLevelName = getLevelTitle(nextLevel);
-      nextMaxHp = getLevelMaxHp(nextLevel);
-      nextPlayerHpVal = nextMaxHp;
-      setXp(nextXp - nextMaxXp);
-      setMaxXp(500);
-      setLevel(nextLevel);
-      setLevelName(nextLevelName);
-      setPlayerHp(nextPlayerHpVal);
-      setMaxPlayerHp(nextMaxHp);
+      if (level >= 3) {
+        nextLevel = 3;
+        nextLevelName = getLevelTitle(3);
+        nextXp = 300;
+        setXp(300);
+        setMaxXp(300);
+        setLevel(3);
+        setLevelName(nextLevelName);
+      } else {
+        nextLevel = level + 1;
+        nextLevelName = getLevelTitle(nextLevel);
+        nextMaxHp = getLevelMaxHp(nextLevel);
+        nextPlayerHpVal = nextMaxHp;
+        setXp(0);
+        setMaxXp(300);
+        setLevel(nextLevel);
+        setLevelName(nextLevelName);
+        setPlayerHp(nextPlayerHpVal);
+        setMaxPlayerHp(nextMaxHp);
+      }
     } else {
       setXp(nextXp);
     }
@@ -463,8 +539,8 @@ export default function App() {
 
     if (user && user.uid !== "local_guest_user") {
       updateFirebaseDoc({
-        xp: nextXp >= nextMaxXp ? nextXp - nextMaxXp : nextXp,
-        maxXp: 500,
+        xp: nextXp,
+        maxXp: 300,
         level: nextLevel,
         levelName: nextLevelName,
         totalXpGained: nextTotalXp,
@@ -534,23 +610,32 @@ export default function App() {
 
   const handleBattleVictoryXpReward = (amount: number) => {
     let nextXp = xp + amount;
+    if (level === 3) {
+      nextXp = Math.min(300, xp + amount);
+    }
     const nextTotalXp = totalXpGained + amount;
     let nextLevel = level;
-    let nextMaxXp = 500;
+    let nextMaxXp = 300;
     let nextLevelName = levelName;
     let nextMaxHp = maxPlayerHp;
     let nextPlayerHpVal = playerHp;
     if (nextXp >= nextMaxXp) {
-      nextLevel = level + 1;
-      nextLevelName = getLevelTitle(nextLevel);
-      nextMaxHp = getLevelMaxHp(nextLevel);
-      nextPlayerHpVal = nextMaxHp;
-      nextXp = nextXp - nextMaxXp;
+      if (level >= 3) {
+        nextLevel = 3;
+        nextLevelName = getLevelTitle(3);
+        nextXp = 300;
+      } else {
+        nextLevel = level + 1;
+        nextLevelName = getLevelTitle(nextLevel);
+        nextMaxHp = getLevelMaxHp(nextLevel);
+        nextPlayerHpVal = nextMaxHp;
+        nextXp = 0;
+      }
     }
     if (user && user.uid !== "local_guest_user") {
       updateFirebaseDoc({
         xp: nextXp,
-        maxXp: 500,
+        maxXp: 300,
         level: nextLevel,
         levelName: nextLevelName,
         totalXpGained: nextTotalXp,
@@ -559,7 +644,7 @@ export default function App() {
       });
     } else {
       setXp(nextXp);
-      setMaxXp(500);
+      setMaxXp(300);
       setLevel(nextLevel);
       setLevelName(nextLevelName);
       setTotalXpGained(nextTotalXp);
@@ -574,6 +659,27 @@ export default function App() {
       updateFirebaseDoc({ credits: nextCredits });
     } else {
       setCredits(nextCredits);
+    }
+  };
+
+  const handleUpdateBossIndex = (index: number) => {
+    setCurrentBossIndex(index);
+    if (user && user.uid !== "local_guest_user") {
+      updateFirebaseDoc({ currentBossIndex: index });
+    }
+  };
+
+  const handleUpdateBossHp = (hp: number | null) => {
+    setCurrentBossHp(hp);
+    if (user && user.uid !== "local_guest_user") {
+      updateFirebaseDoc({ currentBossHp: hp });
+    }
+  };
+
+  const handleUnlockTriBossChampion = (unlocked: boolean) => {
+    setTriBossChampion(unlocked);
+    if (user && user.uid !== "local_guest_user") {
+      updateFirebaseDoc({ triBossChampion: unlocked });
     }
   };
 
@@ -623,12 +729,14 @@ export default function App() {
         levelName: nextLevelName,
         playerHp: nextHp,
         maxPlayerHp: nextHp,
+        xp: 0,
       });
     } else {
       setLevel(nextLevel);
       setLevelName(nextLevelName);
       setPlayerHp(nextHp);
       setMaxPlayerHp(nextHp);
+      setXp(0);
     }
   };
 
@@ -749,6 +857,9 @@ export default function App() {
               avatarUrl={getLevelAvatar(level)}
               level={level}
               levelName={levelName}
+              doubleXp={doubleXp}
+              habits={habits}
+              triBossChampion={triBossChampion}
             />
           )}
 
@@ -758,6 +869,7 @@ export default function App() {
               setCredits={handleSetCredits}
               onPurchaseBoost={handlePurchaseBoost}
               onHeal={handleHeal}
+              doubleXp={doubleXp}
             />
           )}
 
@@ -783,6 +895,12 @@ export default function App() {
               addXp={handleBattleVictoryXpReward}
               addCredits={handleBattleVictoryCreditsReward}
               onRetreat={() => setActiveView("home")}
+              currentBossIndex={currentBossIndex}
+              updateBossIndex={handleUpdateBossIndex}
+              triBossChampion={triBossChampion}
+              setTriBossChampion={handleUnlockTriBossChampion}
+              currentBossHp={currentBossHp}
+              updateBossHp={handleUpdateBossHp}
             />
           )}
         </div>

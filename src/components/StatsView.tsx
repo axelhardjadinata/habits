@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Moon, Brain, Trophy, Lock, Zap, Clock, Utensils, BookOpen } from "lucide-react";
+import { Moon, Brain, Trophy, Lock, Zap, Clock, Utensils, BookOpen, Swords } from "lucide-react";
+import { DailyHabit } from "../types";
 
 interface StatsViewProps {
   currentStreak: number;
@@ -10,6 +11,9 @@ interface StatsViewProps {
   avatarUrl: string;
   level: number;
   levelName: string;
+  doubleXp?: boolean;
+  habits?: DailyHabit[];
+  triBossChampion?: boolean;
 }
 
 export default function StatsView({
@@ -20,6 +24,9 @@ export default function StatsView({
   avatarUrl,
   level,
   levelName,
+  doubleXp = false,
+  habits = [],
+  triBossChampion = false,
 }: StatsViewProps) {
   // Randomize the current number of days and best number of days for Daily Habit Streaks (Brain Dump Organizer)
   const [brainDumpCurrent] = useState(() => Math.floor(Math.random() * 10) + 5); // Random 5 to 14 days
@@ -34,6 +41,11 @@ export default function StatsView({
     const current = Math.floor(Math.random() * 12) + 6;
     return current + Math.floor(Math.random() * 10) + 4; // Always greater than or equal to current
   });
+
+  const habit1 = habits.find((h) => h.id === "habit_1") || { streakCount: 7, xpReward: 25 };
+  const habit2 = habits.find((h) => h.id === "habit_2") || { streakCount: 9, xpReward: 50 };
+  const habit3 = habits.find((h) => h.id === "habit_3") || { streakCount: brainDumpCurrent, xpReward: 50 };
+  const habit4 = habits.find((h) => h.id === "habit_4") || { streakCount: 5, xpReward: 30 };
 
   return (
     <main className="px-5 flex flex-col gap-8 mt-24 mb-24 w-full max-w-md mx-auto">
@@ -84,8 +96,13 @@ export default function StatsView({
 
       {/* Daily Habit Streaks Section */}
       <section className="flex flex-col gap-4 w-full">
-        <h2 className="font-display-hero text-2xl text-white uppercase tracking-wide text-stroke-black">
-          DAILY HABIT STREAKS
+        <h2 className="font-display-hero text-2xl text-white uppercase tracking-wide text-stroke-black flex items-center flex-wrap gap-1.5">
+          <span>DAILY HABIT STREAKS</span>
+          {doubleXp && (
+            <span className="text-orange-400 text-xs px-2 py-0.5 bg-orange-950/70 border border-orange-500 rounded animate-pulse inline-block uppercase">
+              2X XP Boost
+            </span>
+          )}
         </h2>
 
         {/* Habit 1 Streak */}
@@ -98,11 +115,11 @@ export default function StatsView({
               SLEEP/SUNLIGHT SYNCHRONIZER
             </h3>
             <p className="font-body-md text-xs text-gray-300 italic font-medium">
-              Current: 7 Days / Best: 14 Days
+              Current: {habit1.streakCount} Days / Best: {Math.max(14, habit1.streakCount)} Days
             </p>
           </div>
           <div className="bg-[#3A9AFF] border-2 border-[#121312] text-white font-display-hero px-2.5 py-1 rounded shadow-[2px_2px_0px_#121212] rotate-3 text-sm pt-1.5 whitespace-nowrap shrink-0">
-            +25 XP
+            +{habit1.xpReward * (doubleXp ? 2 : 1)} XP
           </div>
         </div>
 
@@ -116,11 +133,11 @@ export default function StatsView({
               THE FEYNMAN TUTOR
             </h3>
             <p className="font-body-md text-xs text-gray-300 italic font-medium">
-              Current: 9 Days / Best: 16 Days
+              Current: {habit2.streakCount} Days / Best: {Math.max(16, habit2.streakCount)} Days
             </p>
           </div>
           <div className="bg-[#3A9AFF] border-2 border-[#121312] text-white font-display-hero px-2.5 py-1 rounded shadow-[2px_2px_0px_#121212] rotate-1 text-sm pt-1.5 whitespace-nowrap shrink-0">
-            +50 XP
+            +{habit2.xpReward * (doubleXp ? 2 : 1)} XP
           </div>
         </div>
 
@@ -134,11 +151,11 @@ export default function StatsView({
               BRAIN DUMP ORGANIZER
             </h3>
             <p className="font-body-md text-xs text-gray-300 italic font-medium">
-              Current: {brainDumpCurrent} Days / Best: {brainDumpBest} Days
+              Current: {habit3.streakCount} Days / Best: {Math.max(brainDumpBest, habit3.streakCount)} Days
             </p>
           </div>
           <div className="bg-[#3A9AFF] border-2 border-[#121312] text-white font-display-hero px-2.5 py-1 rounded shadow-[2px_2px_0px_#121212] rotate-1 text-sm pt-1.5 whitespace-nowrap shrink-0">
-            +50 XP
+            +{habit3.xpReward * (doubleXp ? 2 : 1)} XP
           </div>
         </div>
 
@@ -152,11 +169,11 @@ export default function StatsView({
               MEET MEAL 3-COLOR RULE
             </h3>
             <p className="font-body-md text-xs text-gray-300 italic font-medium">
-              Current: 5 Days / Best: 10 Days
+              Current: {habit4.streakCount} Days / Best: {Math.max(10, habit4.streakCount)} Days
             </p>
           </div>
           <div className="bg-[#3A9AFF] border-2 border-[#121312] text-white font-display-hero px-2.5 py-1 rounded shadow-[2px_2px_0px_#121212] -rotate-2 text-sm pt-1.5 whitespace-nowrap shrink-0">
-            +30 XP
+            +{habit4.xpReward * (doubleXp ? 2 : 1)} XP
           </div>
         </div>
 
@@ -244,6 +261,39 @@ export default function StatsView({
               </h4>
               <p className="font-label-sm text-[10px] text-gray-500 uppercase italic">
                 Level 3 Locked
+              </p>
+            </div>
+          )}
+
+          {/* CONQUEROR OF CHAOS BADGE */}
+          {triBossChampion ? (
+            <motion.div
+              whileHover={{ y: -4 }}
+              className="bg-[#261CC1] border-3 border-[#121312] comic-shadow rounded-xl p-4 text-center flex flex-col items-center justify-between"
+            >
+              <div className="w-14 h-14 bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-full border-3 border-[#121312] flex items-center justify-center mb-2 shadow-[0_0_12px_rgba(239,68,68,0.7),inset_0px_-4px_0px_0px_rgba(0,0,0,0.35)] animate-pulse">
+                <Swords className="w-6 h-6 text-white fill-white" />
+              </div>
+              <h4 className="font-display-hero text-white text-lg leading-tight uppercase tracking-wider">
+                CONQUEROR OF CHAOS
+              </h4>
+              <p className="font-label-sm text-[10px] text-yellow-350 uppercase italic font-bold">
+                TRI-BOSS CHAMPION! 🏆
+              </p>
+            </motion.div>
+          ) : (
+            <div className="bg-[#1a1a1a] border-3 border-gray-600 rounded-xl p-4 text-center flex flex-col items-center justify-between relative opacity-60 grayscale">
+              <div className="absolute inset-0 bg-black/40 z-10 rounded-xl flex items-center justify-center">
+                <Lock className="w-8 h-8 text-white filter drop-shadow-md" />
+              </div>
+              <div className="w-14 h-14 bg-gray-500 rounded-full border-3 border-gray-750 flex items-center justify-center mb-2">
+                <Swords className="w-6 h-6 text-gray-800" />
+              </div>
+              <h4 className="font-display-hero text-gray-400 text-lg leading-tight uppercase tracking-wider">
+                CONQUEROR OF CHAOS
+              </h4>
+              <p className="font-label-sm text-[10px] text-gray-500 uppercase italic">
+                Defeat The Tomorrow Titan 💀
               </p>
             </div>
           )}
