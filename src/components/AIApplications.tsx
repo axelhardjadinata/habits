@@ -72,7 +72,7 @@ export default function AIApplications({ onCompleteHabitByAI, doubleXp }: AIAppl
   const handleClaimFeynmanCompletion = () => {
     if (!feynmanResult) return;
     onCompleteHabitByAI(
-      3,
+      2,
       50,
       25,
       `🎓 CONCEPT MASTERED! Score ${feynmanResult.clarityScore}% simple-analogy achieved. Academic study zone habit unlocked!`

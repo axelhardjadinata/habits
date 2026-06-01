@@ -16,6 +16,11 @@ interface BattleViewProps {
   setTriBossChampion: (unlocked: boolean) => void;
   currentBossHp: number | null;
   updateBossHp: (hp: number | null) => void;
+  fiveMinuteFuseCount: number;
+  setFiveMinuteFuseCount: (count: number) => void;
+  hasNoiseHelmet: boolean;
+  hasBootsMomentum: boolean;
+  currentStreak: number;
 }
 
 interface FloatingText {
@@ -41,6 +46,11 @@ export default function BattleView({
   setTriBossChampion,
   currentBossHp,
   updateBossHp,
+  fiveMinuteFuseCount,
+  setFiveMinuteFuseCount,
+  hasNoiseHelmet,
+  hasBootsMomentum,
+  currentStreak,
 }: BattleViewProps) {
   // Boss state
   const [currentBossIndex, setCurrentBossIndex] = useState(initialBossIndex);
@@ -118,6 +128,15 @@ export default function BattleView({
   const [isSlashing, setIsSlashing] = useState(false);
   const directionRef = useRef(1);
   const sliderSpeedRef = useRef(4.8); // Smooth, challenging tactical speed
+
+  useEffect(() => {
+    if (hasBootsMomentum) {
+      sliderSpeedRef.current = 3.3; // High momentum combat agility, fine-tuned slower target speed!
+    } else {
+      sliderSpeedRef.current = 4.8;
+    }
+  }, [hasBootsMomentum]);
+
   const sliderPositionRef = useRef(0);
 
   // Game state
@@ -410,7 +429,26 @@ export default function BattleView({
     const isHit = wasPlayerMiss ? Math.random() < 0.85 : Math.random() < 0.45;
     
     if (isHit) {
-      const bossDamage = wasPlayerMiss ? 12 : 6;
+      let bossDamage = wasPlayerMiss ? 12 : 6;
+      let defenseLog = "";
+      let reductionPercent = 0;
+
+      if (hasNoiseHelmet && currentBossIndex === 1) {
+        reductionPercent += 30;
+        defenseLog += " [HELMET -30%]";
+      }
+
+      if (hasBootsMomentum) {
+        const streakDefense = Math.min(50, currentStreak * 3);
+        reductionPercent += streakDefense;
+        defenseLog += ` [BOOTS MOMENTUM -${streakDefense}%]`;
+      }
+
+      if (reductionPercent > 0) {
+        const afterReduction = Math.max(1, Math.round(bossDamage * (1 - Math.min(80, reductionPercent) / 100)));
+        bossDamage = afterReduction;
+      }
+
       const nextPlayerHp = Math.max(0, battlePlayerHpRef.current - bossDamage);
       setBattlePlayerHp(nextPlayerHp);
       battlePlayerHpRef.current = nextPlayerHp;
@@ -425,11 +463,100 @@ export default function BattleView({
         setActionLog(`DEFEAT! ${bossName}'s shadow bind overwhelms your senses.`);
         setIsPlayingSlider(false);
       } else {
-        setActionLog(`${bossName} counters with shadow levitation spikes!`);
+        setActionLog(`${bossName} counters with shadow levitation spikes!${defenseLog}`);
       }
     } else {
       addFloatingText("EVADED!", "heal");
       setActionLog(`${bossName} sweeps down, but you dodge his shadow claws!`);
+    }
+  };
+
+  const handleUseFiveMinuteFuse = () => {
+    if (fiveMinuteFuseCount <= 0 || battleOutcome !== "ongoing" || isTransitioning) return;
+
+    // Expand 1 fuse
+    const nextCount = fiveMinuteFuseCount - 1;
+    setFiveMinuteFuseCount(nextCount);
+
+    // Deals 20 damage completely bypassing shields
+    const damageToBoss = 20;
+    const nextBossHp = Math.max(0, bossHpRef.current - damageToBoss);
+    setBossHp(nextBossHp);
+    bossHpRef.current = nextBossHp;
+    updateBossHp(nextBossHp);
+
+    addFloatingText("FUSE SHOCK!", "perfect", damageToBoss);
+    setIsScreenShaking(true);
+    setTimeout(() => setIsScreenShaking(false), 450);
+
+    setActionLog(
+      "💣 5-MINUTE RULE ACTIVATED! You tell yourself you'll do a habit for just 5 minutes, tricking your brain into executing action. The 5-Minute Fuse explodes, dealing 20 pure bypass damage to the boss!"
+    );
+
+    if (nextBossHp <= 0) {
+      if (currentBossIndex === 0) {
+        setActionLog("Midnight Glutton is defeated! But suddenly, Dr. Distraction blocks your path!");
+        addFloatingText("BOSS DEFEATED!", "heal");
+        addXp(75);
+        addCredits(100);
+        hasJustDefeatedPreviousRef.current = true;
+        
+        // Secure stage checkpoint in Firestore and parent state immediately
+        updateBossIndex(1);
+        updateBossHp(null);
+
+        setIsPlayingSlider(false);
+        setIsSliderFrozen(true);
+        setIsCooldown(false);
+        if (requestRef.current) {
+          cancelAnimationFrame(requestRef.current);
+        }
+
+        // Trigger decision menu
+        setDecisionNextBossIndex(1);
+        setTimeout(() => {
+          setShowDecisionMenu(true);
+        }, 1000);
+      } else if (currentBossIndex === 1) {
+        setActionLog("Dr. Distraction is defeated! But the system's core ruptures... The Tomorrow Titan rises!");
+        addFloatingText("BOSS DEFEATED!", "heal");
+        addXp(125);
+        addCredits(175);
+        hasJustDefeatedPreviousRef.current = true;
+        
+        // Secure stage checkpoint in Firestore and parent state immediately
+        updateBossIndex(2);
+        updateBossHp(null);
+
+        setIsPlayingSlider(false);
+        setIsSliderFrozen(true);
+        setIsCooldown(false);
+        if (requestRef.current) {
+          cancelAnimationFrame(requestRef.current);
+        }
+
+        // Trigger decision menu
+        setDecisionNextBossIndex(2);
+        setTimeout(() => {
+          setShowDecisionMenu(true);
+        }, 1000);
+      } else {
+        // Ultimate Tomorrow Titan Defeated
+        setBattleOutcome("victory");
+        battleOutcomeRef.current = "victory";
+        addXp(150);
+        addCredits(500);
+        setActionLog("CELESTIAL VICTORY! The Tomorrow Titan is obliterated and the cycle resets!");
+        addFloatingText("TITAN OVERTHROWN!", "heal");
+        setTriBossChampion(true);
+        setIsPlayingSlider(false);
+        setIsSliderFrozen(true);
+        setIsCooldown(false);
+        if (requestRef.current) {
+          cancelAnimationFrame(requestRef.current);
+        }
+        updateBossHp(null);
+      }
     }
   };
 
@@ -735,11 +862,20 @@ export default function BattleView({
               ))}
             </div>
 
-            <div className="font-pixel text-[7px] md:text-[8px] text-slate-300 leading-normal border-t border-b border-yellow-500/30 py-1.5 w-full max-w-[90%] text-center">
+            <div className="font-pixel text-[7px] md:text-[8px] text-slate-300 leading-normal border-t border-b border-yellow-500/30 py-1.5 w-full max-w-[90%] text-center mb-4">
               SYSTEM TIER ALL-CLEAR!<br />
               <span className="text-yellow-400 font-bold block mt-1 animate-pulse">+150 XP AWARDED</span>
               <span className="text-cyan-400 font-bold block mt-0.5 animate-pulse">+500 CREDITS AWARDED</span>
             </div>
+
+            <button
+              id="fabulous-victory-return-btn"
+              onClick={handleFinalVictoryReturn}
+              className="btn-pixel w-full max-w-[80%] bg-[#22c55e] hover:bg-[#16a34a] text-black hover:text-white border-2 border-black p-2 rounded-lg font-pixel text-[9px] uppercase text-center font-bold flex items-center justify-center gap-2 select-none active:scale-95 transition-all shadow-[0_0_15px_rgba(34,197,94,0.6)] cursor-pointer z-50 pointer-events-auto"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              RETURN TO HUB
+            </button>
           </motion.div>
         )}
 
@@ -1005,6 +1141,15 @@ export default function BattleView({
                             <Swords className="w-3.5 h-3.5 shrink-0" />
                             FIGHT
                           </button>
+                          
+                          {fiveMinuteFuseCount > 0 && (
+                            <button
+                              onClick={handleUseFiveMinuteFuse}
+                              className="btn-pixel bg-[#ea580c] text-white border-2 border-black hover:bg-orange-600 p-1.5 font-pixel text-[9px] flex items-center justify-center gap-1.5 select-none active:scale-95 transition-all w-full font-bold animate-pulse"
+                            >
+                              💣 USE 5-MIN FUSE ({fiveMinuteFuseCount})
+                            </button>
+                          )}
                           
                           <button
                             onClick={onRetreat}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Moon, Brain, Trophy, Lock, Zap, Clock, Utensils, BookOpen, Swords } from "lucide-react";
+import { Moon, Brain, Trophy, Lock, Zap, Clock, Utensils, BookOpen, Swords, Shield, Flame } from "lucide-react";
 import { DailyHabit } from "../types";
 
 interface StatsViewProps {
@@ -14,6 +14,9 @@ interface StatsViewProps {
   doubleXp?: boolean;
   habits?: DailyHabit[];
   triBossChampion?: boolean;
+  fiveMinuteFuseCount?: number;
+  hasNoiseHelmet?: boolean;
+  hasBootsMomentum?: boolean;
 }
 
 export default function StatsView({
@@ -27,6 +30,9 @@ export default function StatsView({
   doubleXp = false,
   habits = [],
   triBossChampion = false,
+  fiveMinuteFuseCount = 0,
+  hasNoiseHelmet = false,
+  hasBootsMomentum = false,
 }: StatsViewProps) {
   // Randomize the current number of days and best number of days for Daily Habit Streaks (Brain Dump Organizer)
   const [brainDumpCurrent] = useState(() => Math.floor(Math.random() * 10) + 5); // Random 5 to 14 days
@@ -299,6 +305,87 @@ export default function StatsView({
           )}
 
         </div>
+      </section>
+
+      {/* Active Inventory & Gear Section */}
+      <section className="flex flex-col gap-4 w-full">
+        <h2 className="font-display-hero text-2xl text-white uppercase tracking-wide text-stroke-black">
+          ACTIVE COMBAT GEAR
+        </h2>
+
+        {(!fiveMinuteFuseCount && !hasNoiseHelmet && !hasBootsMomentum) ? (
+          <div className="bg-[#121312] border-3 border-dashed border-gray-600 rounded-xl p-6 text-center">
+            <p className="font-pixel text-[9px] text-gray-400 uppercase leading-relaxed">
+              No tactical gear or active components in stock.<br />
+              Visit the <span className="text-[#3A9AFF] font-bold">Heroic Supply Shop</span> to purchase strategic gear!
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 w-full">
+            {fiveMinuteFuseCount > 0 && (
+              <div className="bg-[#1C0770] border-3 border-[#ea580c] comic-shadow rounded-xl p-3.5 flex items-center gap-3.5 relative overflow-hidden">
+                <div className="w-12 h-12 rounded border-2 border-black bg-[#ea580c]/10 flex items-center justify-center shrink-0">
+                  <img
+                    alt="The 5-Min Fuse"
+                    className="w-10 h-10 object-contain rounded"
+                    src="https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780320645/Screenshot_2026-06-01_at_20.27.24_urkl4n.png"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="flex flex-col justify-center text-left">
+                  <h3 className="font-display-hero text-sm text-white uppercase tracking-wider">
+                    THE 5-MINUTE FUSE x{fiveMinuteFuseCount}
+                  </h3>
+                  <p className="font-body-md text-[9px] text-[#ff9e64]/90 italic leading-tight uppercase font-bold">
+                    🚀 ACTIVE CONSUMABLE • Deals 20 Instant Bypass damage!
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {hasNoiseHelmet && (
+              <div className="bg-[#1C0770] border-3 border-[#a955f7] comic-shadow rounded-xl p-3.5 flex items-center gap-3.5 relative overflow-hidden">
+                <div className="w-12 h-12 rounded border-2 border-black bg-[#a955f7]/10 flex items-center justify-center shrink-0">
+                  <img
+                    alt="Noise Helmet"
+                    className="w-10 h-10 object-contain rounded"
+                    src="https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780320645/Screenshot_2026-06-01_at_20.28.04_ghajhr.png"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="flex flex-col justify-center text-left">
+                  <h3 className="font-display-hero text-sm text-white uppercase tracking-wider">
+                    NOISE-CANCELLING HELMET
+                  </h3>
+                  <p className="font-body-md text-[9px] text-[#c084fc] italic leading-tight uppercase font-bold">
+                    🛡️ PERMANENT DEFENSE • +30% resistance vs. Dr. Distraction!
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {hasBootsMomentum && (
+              <div className="bg-[#1C0770] border-3 border-[#22c55e] comic-shadow rounded-xl p-3.5 flex items-center gap-3.5 relative overflow-hidden">
+                <div className="w-12 h-12 rounded border-2 border-black bg-[#22c55e]/10 flex items-center justify-center shrink-0">
+                  <img
+                    alt="Boots of Momentum"
+                    className="w-10 h-10 object-contain rounded"
+                    src="https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780320645/Screenshot_2026-06-01_at_20.28.19_xkpeg0.png"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="flex flex-col justify-center text-left">
+                  <h3 className="font-display-hero text-sm text-white uppercase tracking-wider">
+                    BOOTS OF MOMENTUM
+                  </h3>
+                  <p className="font-body-md text-[9px] text-[#4ade80] italic leading-snug uppercase font-bold">
+                    ⚡ AGILITY STATS • Turn Rate +30% | Defense: +{Math.min(50, currentStreak * 3)}% (streak scale)!
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
     </main>

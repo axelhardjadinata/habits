@@ -83,6 +83,10 @@ export default function App() {
 
   // Shop booster flags
   const [doubleXp, setDoubleXp] = useState(false);
+  const [fiveMinuteFuseCount, setFiveMinuteFuseCount] = useState(0);
+  const [hasNoiseHelmet, setHasNoiseHelmet] = useState(false);
+  const [hasBootsMomentum, setHasBootsMomentum] = useState(false);
+  const [hasStreakShield, setHasStreakShield] = useState(false);
 
   // Persistent Multi-stage Boss progression
   const [currentBossIndex, setCurrentBossIndex] = useState(0);
@@ -241,6 +245,10 @@ export default function App() {
           setPlayerHp(data.playerHp ?? 100);
           setMaxPlayerHp(data.maxPlayerHp ?? 100);
           setDoubleXp(data.doubleXp ?? false);
+          setFiveMinuteFuseCount(data.fiveMinuteFuseCount ?? 0);
+          setHasNoiseHelmet(data.hasNoiseHelmet ?? false);
+          setHasBootsMomentum(data.hasBootsMomentum ?? false);
+          setHasStreakShield(data.hasStreakShield ?? false);
           setCurrentBossIndex(data.currentBossIndex ?? 0);
           setCurrentBossHp(data.currentBossHp ?? null);
           setTriBossChampion(data.triBossChampion ?? false);
@@ -283,6 +291,10 @@ export default function App() {
             playerHp,
             maxPlayerHp,
             doubleXp,
+            fiveMinuteFuseCount: 0,
+            hasNoiseHelmet: false,
+            hasBootsMomentum: false,
+            hasStreakShield: false,
             currentBossIndex: 0,
             currentBossHp: null,
             triBossChampion: false,
@@ -697,6 +709,13 @@ export default function App() {
     }
   };
 
+  const handleSetFiveMinuteFuseCount = (nextCount: number) => {
+    setFiveMinuteFuseCount(nextCount);
+    if (user && user.uid !== "local_guest_user") {
+      updateFirebaseDoc({ fiveMinuteFuseCount: nextCount });
+    }
+  };
+
   const handleSetCredits = (newCredits: number | ((prev: number) => number)) => {
     let nextCredits = 0;
     if (typeof newCredits === "function") {
@@ -716,6 +735,35 @@ export default function App() {
       updateFirebaseDoc({ doubleXp: true });
     } else {
       setDoubleXp(true);
+    }
+  };
+
+  const handlePurchaseItem = (itemId: string, cost: number) => {
+    const nextCredits = credits - cost;
+    let updates: Partial<any> = { credits: nextCredits };
+
+    if (itemId === "five_minute_fuse") {
+      const nextCount = fiveMinuteFuseCount + 1;
+      setFiveMinuteFuseCount(nextCount);
+      updates.fiveMinuteFuseCount = nextCount;
+    } else if (itemId === "noise_helmet") {
+      setHasNoiseHelmet(true);
+      updates.hasNoiseHelmet = true;
+    } else if (itemId === "boots_momentum") {
+      setHasBootsMomentum(true);
+      updates.hasBootsMomentum = true;
+    } else if (itemId === "streak_shield") {
+      setHasStreakShield(true);
+      updates.hasStreakShield = true;
+    } else if (itemId === "xp_boost") {
+      setDoubleXp(true);
+      updates.doubleXp = true;
+    }
+
+    if (user && user.uid !== "local_guest_user") {
+      updateFirebaseDoc(updates);
+    } else {
+      setCredits(nextCredits);
     }
   };
 
@@ -860,16 +908,22 @@ export default function App() {
               doubleXp={doubleXp}
               habits={habits}
               triBossChampion={triBossChampion}
+              fiveMinuteFuseCount={fiveMinuteFuseCount}
+              hasNoiseHelmet={hasNoiseHelmet}
+              hasBootsMomentum={hasBootsMomentum}
             />
           )}
 
           {activeView === "shop" && (
             <ShopView
               credits={credits}
-              setCredits={handleSetCredits}
-              onPurchaseBoost={handlePurchaseBoost}
-              onHeal={handleHeal}
               doubleXp={doubleXp}
+              fiveMinuteFuseCount={fiveMinuteFuseCount}
+              hasNoiseHelmet={hasNoiseHelmet}
+              hasBootsMomentum={hasBootsMomentum}
+              hasStreakShield={hasStreakShield}
+              onPurchaseItem={handlePurchaseItem}
+              onHeal={handleHeal}
             />
           )}
 
@@ -901,6 +955,11 @@ export default function App() {
               setTriBossChampion={handleUnlockTriBossChampion}
               currentBossHp={currentBossHp}
               updateBossHp={handleUpdateBossHp}
+              fiveMinuteFuseCount={fiveMinuteFuseCount}
+              setFiveMinuteFuseCount={handleSetFiveMinuteFuseCount}
+              hasNoiseHelmet={hasNoiseHelmet}
+              hasBootsMomentum={hasBootsMomentum}
+              currentStreak={currentStreak}
             />
           )}
         </div>

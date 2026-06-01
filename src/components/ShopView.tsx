@@ -4,10 +4,13 @@ import { Sparkles, Shield, Flame, Activity, Check } from "lucide-react";
 
 interface ShopViewProps {
   credits: number;
-  setCredits: React.Dispatch<React.SetStateAction<number>>;
-  onPurchaseBoost: () => void;
-  onHeal: (amount: number) => void;
   doubleXp?: boolean;
+  fiveMinuteFuseCount: number;
+  hasNoiseHelmet: boolean;
+  hasBootsMomentum: boolean;
+  hasStreakShield: boolean;
+  onPurchaseItem: (itemId: string, cost: number) => void;
+  onHeal: (amount: number) => void;
 }
 
 interface ItemState {
@@ -16,24 +19,39 @@ interface ItemState {
   description: string;
   cost: number;
   iconType: "skin" | "shield" | "boost" | "bubble";
-  purchased: boolean;
 }
 
 export default function ShopView({
   credits,
-  setCredits,
-  onPurchaseBoost,
-  onHeal,
   doubleXp = false,
+  fiveMinuteFuseCount,
+  hasNoiseHelmet,
+  hasBootsMomentum,
+  hasStreakShield,
+  onPurchaseItem,
+  onHeal,
 }: ShopViewProps) {
-  const [items, setItems] = useState<ItemState[]>([
+  const items: ItemState[] = [
     {
-      id: "skin_cosmic",
-      name: "LEGENDARY SUIT SKINS",
-      description: "Unlock alternative cosmic, stealth, and cyberpunk appearances for your hero.",
-      cost: 800,
+      id: "five_minute_fuse",
+      name: "THE 5-MINUTE FUSE",
+      description: "Instantly deals 20 unblockable damage to any active boss, completely bypassing shields.",
+      cost: 200,
+      iconType: "boost",
+    },
+    {
+      id: "noise_helmet",
+      name: "NOISE-CANCELLING HELMET",
+      description: "Grants +30% passive resistance to status distractions. Direct counter to Dr. Distraction.",
+      cost: 350,
+      iconType: "shield",
+    },
+    {
+      id: "boots_momentum",
+      name: "BOOTS OF MOMENTUM",
+      description: "Increases slider agility. Defense bonus scales higher based on your active daily habit streak.",
+      cost: 500,
       iconType: "skin",
-      purchased: false,
     },
     {
       id: "streak_shield",
@@ -41,7 +59,6 @@ export default function ShopView({
       description: "Protects your longest habit streak from breaking if you miss a day. Single use.",
       cost: 350,
       iconType: "shield",
-      purchased: false,
     },
     {
       id: "xp_boost",
@@ -49,7 +66,6 @@ export default function ShopView({
       description: "Double all XP gained from completed daily habits for the next 24 hours.",
       cost: 450,
       iconType: "boost",
-      purchased: false,
     },
     {
       id: "bubble_shield",
@@ -57,9 +73,8 @@ export default function ShopView({
       description: "Instantly adds +10 max HP to your hero and fully heals your active state.",
       cost: 600,
       iconType: "bubble",
-      purchased: false,
     },
-  ]);
+  ];
 
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -70,78 +85,50 @@ export default function ShopView({
       return;
     }
 
-    setCredits((prev) => prev - item.cost);
-    setItems((prev) =>
-      prev.map((it) => (it.id === item.id ? { ...it, purchased: true } : it))
-    );
+    onPurchaseItem(item.id, item.cost);
 
-    // Apply immediate benefits if any
-    if (item.id === "xp_boost") {
-      onPurchaseBoost();
-    } else if (item.id === "bubble_shield") {
-      onHeal(20);
-    }
-
-    setNotification(`🎉 PURCHASED SUCESSFULLY: ${item.name}!`);
+    setNotification(`🎉 PURCHASED SUCCESSFULLY: ${item.name}!`);
     setTimeout(() => setNotification(null), 3000);
   };
 
   const renderItemImage = (item: ItemState) => {
+    let src = "";
+    // All these screenshots are captured from light/white-backed layouts, so we key out white.
+    // We register both white and black chroma filters to be safe and versatile.
+    const filterId = "remove-white-bg";
+
     switch (item.id) {
-      case "skin_cosmic":
-        return (
-          <>
-            <img
-              alt="Cosmic Suit Background"
-              className="absolute inset-0 w-full h-full object-cover opacity-75 brightness-90 group-hover:scale-105 transition-transform duration-200"
-              src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=80"
-              referrerPolicy="no-referrer"
-            />
-            <div className="absolute inset-0 bg-[#0B024C]/60 mix-blend-multiply" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1C0770]/90 to-transparent" />
-            <Sparkles className="relative w-14 h-14 text-yellow-400 filter drop-shadow-[0_0_12px_rgba(234,179,8,0.9)] animate-pulse z-10" />
-          </>
-        );
+      case "five_minute_fuse":
+        src = "https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780320645/Screenshot_2026-06-01_at_20.27.24_urkl4n.png";
+        break;
+      case "noise_helmet":
+        src = "https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780320645/Screenshot_2026-06-01_at_20.28.04_ghajhr.png";
+        break;
+      case "boots_momentum":
+        src = "https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780320645/Screenshot_2026-06-01_at_20.28.19_xkpeg0.png";
+        break;
       case "streak_shield":
-        return (
-          <img
-            alt="Oracle Streak Shield"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-            src="https://lh3.googleusercontent.com/aida/ADBb0uh43cBNrDsxFjRvYG_eiYIGfGHIhCzMwf_Uch9dZBkHIe068Y9PMHU1tyXgQ3omi3Zyt9uuASTBj-yVhkFnfVUN0wnO2quQ7M9rbxWAqaA7Rl4Y3gM2tT5XaK3hsQl5bUOVYFNS_T1gFe2Yr4ZgzUJVJfP_bXZBcEocfHhUqOh8WzRY-imOeHpiKK4uw4f-BMfN_tg1VHNtbH7QHA8IYyS_1Yw2IQL9rcEofrAnEE5LWo7_rkS4OzV4xDw"
-            referrerPolicy="no-referrer"
-          />
-        );
+        src = "https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780323129/Screenshot_2026-06-01_at_21.11.26_zfnqax.png";
+        break;
       case "xp_boost":
-        return (
-          <>
-            <img
-              alt="Booster Background"
-              className="absolute inset-0 w-full h-full object-cover opacity-75 brightness-90 group-hover:scale-105 transition-transform duration-200"
-              src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=80"
-              referrerPolicy="no-referrer"
-            />
-            <div className="absolute inset-0 bg-[#0B024C]/60 mix-blend-multiply" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1C0770]/90 to-transparent" />
-            <Flame className="relative w-14 h-14 text-red-500 fill-red-500 filter drop-shadow-[0_0_12px_rgba(239,68,68,0.9)] animate-bounce z-10" />
-          </>
-        );
+        src = "https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780323129/Screenshot_2026-06-01_at_21.11.36_er9wij.png";
+        break;
       case "bubble_shield":
-        return (
-          <>
-            <img
-              alt="Bubble Shield Background"
-              className="absolute inset-0 w-full h-full object-cover opacity-75 brightness-90 group-hover:scale-105 transition-transform duration-200"
-              src="https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?w=500&auto=format&fit=crop&q=80"
-              referrerPolicy="no-referrer"
-            />
-            <div className="absolute inset-0 bg-[#0B024C]/60 mix-blend-multiply" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1C0770]/90 to-transparent" />
-            <Activity className="relative w-14 h-14 text-cyan-400 filter drop-shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse z-10" />
-          </>
-        );
+        src = "https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780323129/Screenshot_2026-06-01_at_21.11.42_pei7vv.png";
+        break;
       default:
         return null;
     }
+
+    return (
+      <img
+        alt={item.name}
+        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200 p-1"
+        src={src}
+        style={{ filter: `url(#${filterId})` }}
+        referrerPolicy="no-referrer"
+      />
+    );
   };
 
   return (
@@ -176,22 +163,33 @@ export default function ShopView({
 
       <section className="grid grid-cols-2 gap-3 w-full">
         {items.map((item) => {
-          const isOwned = item.id === "xp_boost" ? doubleXp : (item.purchased && item.id === "streak_shield");
+          const isOwned = item.id === "xp_boost" ? doubleXp : 
+                          item.id === "noise_helmet" ? hasNoiseHelmet : 
+                          item.id === "boots_momentum" ? hasBootsMomentum : 
+                          item.id === "streak_shield" ? hasStreakShield : false;
+
           return (
             <article
               key={item.id}
               className="bg-[#121312] border-3 border-[#3A9AFF] p-2.5 flex flex-col justify-between relative block-shadow group hover:-translate-y-1 transition-transform duration-200 aspect-[3/4.6] rounded-xl"
             >
-              <div className="h-32 w-full bg-[#1C0770] comic-border rounded-lg cross-hatch flex items-center justify-center overflow-hidden relative shrink-0">
+              <div className="h-32 w-full bg-transparent comic-border rounded-lg flex items-center justify-center overflow-hidden relative shrink-0">
                 {renderItemImage(item)}
+                
                 {item.id === "xp_boost" && (
                   <span className="absolute bottom-1 right-2 bg-slate-900/90 border border-orange-500/50 px-1.5 py-0.5 rounded font-display-hero text-orange-400 text-[9px] uppercase tracking-wider z-20">
                     2X XP
                   </span>
                 )}
+
+                {item.id === "five_minute_fuse" && fiveMinuteFuseCount > 0 && (
+                  <span className="absolute bottom-1 right-2 bg-slate-900/90 border border-orange-500/50 px-1.5 py-0.5 rounded font-display-hero text-orange-400 text-[9px] uppercase tracking-wider z-20 animate-pulse">
+                    OWNED: {fiveMinuteFuseCount}
+                  </span>
+                )}
               </div>
 
-              <div className="flex flex-col flex-grow justify-center mt-2.5">
+              <div className="flex flex-col flex-grow justify-center mt-2.5 text-left">
                 <h3 className="font-display-hero text-[11px] leading-tight text-white uppercase italic tracking-wider">
                   {item.name}
                 </h3>
@@ -222,6 +220,32 @@ export default function ShopView({
           );
         })}
       </section>
+      
+      {/* SVG Filters for Transparent Backdrop Processing */}
+      <svg className="absolute w-0 h-0 pointer-events-none" width="0" height="0" style={{ position: "absolute", width: 0, height: 0 }}>
+        <defs>
+          {/* Key out white backgrounds safely while preserving foreground color vibrance */}
+          <filter id="remove-white-bg">
+            <feColorMatrix
+              type="matrix"
+              values="1 0 0 0 0
+                      0 1 0 0 0
+                      0 0 1 0 0
+                      -2 -2 -2 5 -0.2"
+            />
+          </filter>
+          {/* Key out black/dark backgrounds safely while preserving foreground color vibrance */}
+          <filter id="remove-black-bg">
+            <feColorMatrix
+              type="matrix"
+              values="1 0 0 0 0
+                      0 1 0 0 0
+                      0 0 1 0 0
+                      2 2 2 0 -0.2"
+            />
+          </filter>
+        </defs>
+      </svg>
 
     </main>
   );
