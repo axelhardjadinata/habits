@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Swords, LogOut, RefreshCw, Trophy, Heart } from "lucide-react";
+import { Swords, LogOut, RefreshCw, Trophy, Heart, ArrowLeft, Wind, Shield, Bomb } from "lucide-react";
 
 interface BattleViewProps {
   playerHp: number;
@@ -26,9 +26,7 @@ interface BattleViewProps {
 interface FloatingText {
   id: number;
   text: string;
-  type: "perfect" | "good" | "okay" | "miss" | "boss-attack" | "heal";
-  xOffset?: number;
-  yOffset?: number;
+  type: "perfect" | "good" | "okay" | "miss" | "boss-attack" | "heal" | "item";
   damage?: number;
 }
 
@@ -52,136 +50,143 @@ export default function BattleView({
   hasBootsMomentum,
   currentStreak,
 }: BattleViewProps) {
-  // Boss state
+  // Boss progression state
   const [currentBossIndex, setCurrentBossIndex] = useState(initialBossIndex);
-  
+
   useEffect(() => {
     setCurrentBossIndex(initialBossIndex);
   }, [initialBossIndex]);
 
+  // Boss configurations (Midnight Glutton starting health pool reduced to exactly 100 HP)
   const bossList = [
     {
       name: "Midnight Glutton",
-      maxHp: 60,
-      bgUrl: "https://lh3.googleusercontent.com/aida/AP1WRLuWoX4Au0CUU2Gz9b3GfRAhDpWCg17zoqOpYs6nB_d1HG-PsVaiiSvU6ZSDBwj4wpPlfEarzqd4AVE94o8qSggFFTccJAJvhOQZ7vsKKD-ykzY13g9pNx5OkVEWc_WYilPoULLYa845fQqIl7ox02jTvnYNYUaBTT1JrpcHueqfl2dc9tWnr9jiLp1k_eIvDFmO83N1QYEjb4I-8shwj4qD8nwOgSYALI1IFk8aQ7_uKU2RxNjZ_qYq1A",
+      maxHp: 100,
+      bgUrl: "https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780360771/Gemini_Generated_Image_ck17ebck17ebck17_njnzzr.png",
+      bgPosition: "center 5%",
+      bgSize: "108% 108%",
+      verticalOffset: "-24px"
     },
     {
       name: "Dr. Distraction",
       maxHp: 150,
       bgUrl: "https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780245710/image_4_csamtk.png",
+      bgPosition: "center 0%",
+      bgSize: "108% 108%",
+      verticalOffset: "-24px"
     },
     {
       name: "The Tomorrow Titan",
       maxHp: 300,
       bgUrl: "https://res.cloudinary.com/dcxrn4kmx/image/upload/v1780287388/Gemini_Generated_Image_gimz9cgimz9cgimz_kmnsqv.png",
+      bgPosition: "center 4%",
+      bgSize: "108% 108%",
+      verticalOffset: "-24px"
     }
   ];
 
   const currentBoss = bossList[currentBossIndex] || bossList[0];
   const bossName = currentBoss.name;
   const maxBossHp = currentBoss.maxHp;
+
   const [bossHp, setBossHp] = useState(() => {
     if (currentBossHp !== null && currentBossHp !== undefined) {
       return currentBossHp;
     }
     return currentBoss.maxHp;
   });
+
   const [isTransitioning, setIsTransitioning] = useState(false);
-
-  const isInitialMount = useRef(true);
-
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      if (currentBossHp !== null && currentBossHp !== undefined) {
-        setBossHp(currentBossHp);
-        bossHpRef.current = currentBossHp;
-        return;
-      }
-    }
-    const b = bossList[currentBossIndex] || bossList[0];
-    setBossHp(b.maxHp);
-    bossHpRef.current = b.maxHp;
-  }, [currentBossIndex]);
-
-  const hasJustDefeatedPreviousRef = useRef(false);
-
-  // Dynamic state refs to guarantee synchronous checks inside async consecutive keypress timeouts
   const bossHpRef = useRef(bossHp);
+
   useEffect(() => {
     bossHpRef.current = bossHp;
   }, [bossHp]);
 
+  // Sync index and boss HP loaded
+  useEffect(() => {
+    const b = bossList[currentBossIndex] || bossList[0];
+    if (currentBossHp !== null && currentBossHp !== undefined) {
+      setBossHp(currentBossHp);
+      bossHpRef.current = currentBossHp;
+    } else {
+      setBossHp(b.maxHp);
+      bossHpRef.current = b.maxHp;
+    }
+  }, [currentBossIndex]);
+
   // Hero Local Health System for active battle (Initialized at exactly 100 HP)
   const [battlePlayerHp, setBattlePlayerHp] = useState(100);
   const battleMaxPlayerHp = 100;
-
   const battlePlayerHpRef = useRef(battlePlayerHp);
+
   useEffect(() => {
     battlePlayerHpRef.current = battlePlayerHp;
-  }, [battlePlayerHp]);
+    // Keep parent Hp synced
+    setPlayerHp(battlePlayerHp);
+  }, [battlePlayerHp, setPlayerHp]);
 
-  // Slider State for checking hits
-  const [isPlayingSlider, setIsPlayingSlider] = useState(false);
+  // Combo Chain State
+  const [currentChain, setCurrentChain] = useState(0);
+
+  // Active items states (temporary toggles or visual triggers)
+  const [isAgilityActive, setIsAgilityActive] = useState(false);
+  const [activeShields, setActiveShields] = useState(0);
+  const [isHelmetFortified, setIsHelmetFortified] = useState(false);
+
+  // Slider Mechanics
+  const [isPlayingSlider, setIsPlayingSlider] = useState(true); // Always active slider minigame by default!
   const [sliderPosition, setSliderPosition] = useState(0);
   const [isSliderFrozen, setIsSliderFrozen] = useState(false);
   const [isSlashing, setIsSlashing] = useState(false);
+  const [isCooldown, setIsCooldown] = useState(false);
+
   const directionRef = useRef(1);
-  const sliderSpeedRef = useRef(4.8); // Smooth, challenging tactical speed
-
-  useEffect(() => {
-    if (hasBootsMomentum) {
-      sliderSpeedRef.current = 3.3; // High momentum combat agility, fine-tuned slower target speed!
-    } else {
-      sliderSpeedRef.current = 4.8;
-    }
-  }, [hasBootsMomentum]);
-
+  const sliderSpeedRef = useRef(4.0);
   const sliderPositionRef = useRef(0);
+  const requestRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
 
-  // Game state
+  // Adjust speed based on Agility power booster or boots momentum
+  useEffect(() => {
+    let baseSpeed = 4.2;
+    if (isAgilityActive) {
+      baseSpeed = 2.2; // 45% slower for ultimate critical precision
+    } else if (hasBootsMomentum) {
+      baseSpeed = 3.2; // Speed advantage
+    }
+    sliderSpeedRef.current = baseSpeed;
+  }, [isAgilityActive, hasBootsMomentum]);
+
+  // Combat Outcome state
   const [battleOutcome, setBattleOutcome] = useState<"ongoing" | "victory" | "defeat">("ongoing");
   const battleOutcomeRef = useRef(battleOutcome);
   useEffect(() => {
     battleOutcomeRef.current = battleOutcome;
   }, [battleOutcome]);
 
-  // Universal post-battle choice menu
   const [showDecisionMenu, setShowDecisionMenu] = useState(false);
   const [decisionNextBossIndex, setDecisionNextBossIndex] = useState<number | null>(null);
 
-  const [actionLog, setActionLog] = useState<string>("Face the hooded villain in the dark alleyway...");
+  const [actionLog, setActionLog] = useState<string>("Face the demonic Midnight Glutton in the dark pixel arena!");
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
   const [isScreenShaking, setIsScreenShaking] = useState(false);
   const [isEnemyFlashing, setIsEnemyFlashing] = useState(false);
 
-  // Anti-Spam input cooldown
-  const [isCooldown, setIsCooldown] = useState(false);
-  const isCooldownRef = useRef(false);
-  useEffect(() => {
-    isCooldownRef.current = isCooldown;
-  }, [isCooldown]);
-
-  // Animation Frame Ref
-  const requestRef = useRef<number | null>(null);
-
-  // Floating text Counter
   const textIdCounter = useRef(0);
 
   const addFloatingText = (text: string, type: FloatingText["type"], damage?: number) => {
     const id = textIdCounter.current++;
-    const xOffset = Math.floor(Math.random() * 80) - 40;
-    const yOffset = Math.floor(Math.random() * 40) - 20;
-    setFloatingTexts((prev) => [...prev, { id, text, type, xOffset, yOffset, damage }]);
+    setFloatingTexts((prev) => [...prev, { id, text, type, damage }]);
     setTimeout(() => {
       setFloatingTexts((prev) => prev.filter((item) => item.id !== id));
-    }, 1000); // Exactly one second fade out and disappear completely
+    }, 1200);
   };
 
-  // Run the slider animation loop
+  // Slider animation loop
   const animateSlider = () => {
-    if (Date.now() - startTimeRef.current > 4000) {
-      handleStopSlider(undefined, true);
+    if (battleOutcomeRef.current !== "ongoing") {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
       return;
     }
 
@@ -197,13 +202,13 @@ export default function BattleView({
       sliderPositionRef.current = nextPos;
       return nextPos;
     });
+
     requestRef.current = requestAnimationFrame(animateSlider);
   };
 
-  const startTimeRef = useRef<number>(0);
-
   useEffect(() => {
     if (isPlayingSlider && !isSliderFrozen && battleOutcome === "ongoing") {
+      startTimeRef.current = Date.now();
       requestRef.current = requestAnimationFrame(animateSlider);
     }
     return () => {
@@ -213,54 +218,25 @@ export default function BattleView({
     };
   }, [isPlayingSlider, isSliderFrozen, battleOutcome]);
 
-  // Global keydown triggers stop action
+  // Spacebar and Enter to trigger stop
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (isPlayingSlider && !isSliderFrozen && battleOutcome === "ongoing") {
-        if (e.key === " " || e.key === "Spacebar" || e.key === "Enter") {
+        if (e.key === " " || e.key === "Enter") {
           e.preventDefault();
+          handleStopSlider();
         }
-        handleStopSlider();
       }
     };
-
-    if (isPlayingSlider && !isSliderFrozen) {
-      window.addEventListener("keydown", handleGlobalKeyDown);
-    }
+    window.addEventListener("keydown", handleGlobalKeyDown);
     return () => {
       window.removeEventListener("keydown", handleGlobalKeyDown);
     };
   }, [isPlayingSlider, isSliderFrozen, battleOutcome]);
 
-  // Handle player pressing FIGHT
-  const handleFightClick = () => {
-    if (battleOutcome !== "ongoing") return;
-    if (currentBossIndex === 0 || !hasJustDefeatedPreviousRef.current) {
-      setBattlePlayerHp(100);
-      battlePlayerHpRef.current = 100;
-      setPlayerHp(100); // Sync initial 100 HP to parent state
-    }
-    hasJustDefeatedPreviousRef.current = false;
-
-    setIsPlayingSlider(true);
-    setIsSliderFrozen(false);
-    setIsSlashing(false);
-    const initialPos = Math.random() * 40 + 10;
-    setSliderPosition(initialPos);
-    sliderPositionRef.current = initialPos;
-    directionRef.current = Math.random() > 0.5 ? 1 : -1;
-    startTimeRef.current = Date.now();
-  };
-
-  // Triggered when stopping the slider
-  const handleStopSlider = (
-    e?: React.MouseEvent | React.KeyboardEvent | KeyboardEvent,
-    isTimeout = false
-  ) => {
-    if (e) {
-      e.stopPropagation();
-    }
-    if (!isPlayingSlider || isSliderFrozen || isCooldownRef.current || battleOutcomeRef.current !== "ongoing") return;
+  // Core Slider Stop Attack calculations
+  const handleStopSlider = () => {
+    if (!isPlayingSlider || isSliderFrozen || isCooldown || battleOutcomeRef.current !== "ongoing") return;
 
     setIsSliderFrozen(true);
     setIsCooldown(true);
@@ -269,330 +245,213 @@ export default function BattleView({
     }
 
     const finalPos = sliderPositionRef.current;
-
     let damageToBoss = 0;
     let feedback = "";
     let type: FloatingText["type"] = "miss";
     let logMsg = "";
 
-    const PERFECT_PHRASES = ["CRITICAL!", "PERFECT!", "MAX COMBO!"];
-    const GOOD_PHRASES = ["SMASH!", "BOOM!", "NICE!"];
-    const OKAY_PHRASES = ["HIT!", "GRAZE!", "1-HIT!"];
-
-    if (isTimeout) {
-      damageToBoss = 0;
-      feedback = "MISS!";
-      type = "miss";
-      logMsg = "Too slow! Your energy blast fizzled out before you could release it!";
-    } else if (finalPos >= 40 && finalPos <= 60) {
-      damageToBoss = 25;
-      feedback = PERFECT_PHRASES[Math.floor(Math.random() * PERFECT_PHRASES.length)];
+    // Target Range evaluations (Center Target: 40% to 60%)
+    if (finalPos >= 42 && finalPos <= 58) {
+      damageToBoss = 30; // Perfect punchy strike strictly capped at 30
+      feedback = "CRITICAL HYPE!";
       type = "perfect";
-      logMsg = "Bullseye! Stopped dead-center inside the Green CRITICAL zone!";
-    } else if ((finalPos >= 20 && finalPos < 40) || (finalPos > 60 && finalPos <= 80)) {
-      damageToBoss = 12;
-      feedback = GOOD_PHRASES[Math.floor(Math.random() * GOOD_PHRASES.length)];
+      logMsg = "CRITICAL HIT! Direct puncture to the core of Midnight Glutton!";
+      setCurrentChain((c) => c + 1);
+    } else if ((finalPos >= 22 && finalPos < 42) || (finalPos > 58 && finalPos <= 78)) {
+      damageToBoss = 20; // Mid-tier alignment strike strictly capped at 20
+      feedback = "SMASH DAMAGE!";
       type = "good";
-      logMsg = "Excellent timing! Stopped inside the Yellow MEDIUM zone.";
+      logMsg = "EXCELLENT STRIKE! The monster is knocked backwards.";
+      setCurrentChain((c) => c + 1);
     } else {
-      damageToBoss = 4;
-      feedback = OKAY_PHRASES[Math.floor(Math.random() * OKAY_PHRASES.length)];
+      damageToBoss = 10; // Low-tier alignment strike strictly capped at 10
+      feedback = "GRAZE HIT";
       type = "okay";
-      logMsg = "Decent strike, but stopped in the Red LOW zone.";
+      logMsg = "SHALLOW STRIKE. Marginal impact on the demon.";
+      setCurrentChain(0); // broken combo
     }
 
-    // Apply damage and logs immediately with no delays
-    if (damageToBoss > 0) {
-      const nextBossHp = Math.max(0, bossHpRef.current - damageToBoss);
-      setBossHp(nextBossHp);
-      bossHpRef.current = nextBossHp;
-      
-      addFloatingText(feedback, type, damageToBoss);
-
-      if (nextBossHp <= 0) {
-        if (currentBossIndex === 0) {
-          setActionLog("Midnight Glutton is defeated! But suddenly, Dr. Distraction blocks your path!");
-          addFloatingText("BOSS DEFEATED!", "heal");
-          addXp(75);
-          addCredits(100);
-          hasJustDefeatedPreviousRef.current = true;
-          
-          // Secure stage checkpoint in Firestore and parent state immediately
-          updateBossIndex(1);
-          updateBossHp(null);
-
-          // Stop active slider loop and freeze combat systems
-          setIsPlayingSlider(false);
-          setIsSliderFrozen(true);
-          setIsCooldown(false);
-          if (requestRef.current) {
-            cancelAnimationFrame(requestRef.current);
-          }
-
-          // Trigger universal post-battle decision menu
-          setDecisionNextBossIndex(1);
-          setTimeout(() => {
-            setShowDecisionMenu(true);
-          }, 1000);
-        } else if (currentBossIndex === 1) {
-          setActionLog("Dr. Distraction is defeated! But the system's core ruptures... The Tomorrow Titan rises!");
-          addFloatingText("BOSS DEFEATED!", "heal");
-          addXp(125);
-          addCredits(175);
-          hasJustDefeatedPreviousRef.current = true;
-          
-          // Secure stage checkpoint in Firestore and parent state immediately
-          updateBossIndex(2);
-          updateBossHp(null);
-
-          // Stop active slider loop and freeze combat systems
-          setIsPlayingSlider(false);
-          setIsSliderFrozen(true);
-          setIsCooldown(false);
-          if (requestRef.current) {
-            cancelAnimationFrame(requestRef.current);
-          }
-
-          // Trigger universal post-battle decision menu
-          setDecisionNextBossIndex(2);
-          setTimeout(() => {
-            setShowDecisionMenu(true);
-          }, 1000);
-        } else {
-          setBattleOutcome("victory");
-          addXp(150); // Exactly 150 XP
-          addCredits(500); // Exactly 500 Credits
-          setActionLog("CELESTIAL VICTORY! The Tomorrow Titan is obliterated and the cycle resets!");
-          addFloatingText("TITAN OVERTHROWN!", "heal");
-          
-          // Complete current tier & freeze mechanics
-          setTriBossChampion(true);
-          setIsPlayingSlider(false);
-          setIsSliderFrozen(true);
-          setIsCooldown(false);
-          if (requestRef.current) {
-            cancelAnimationFrame(requestRef.current);
-          }
-        }
-      } else {
-        setActionLog(logMsg);
-      }
-
-      // Trigger instantaneous slash animations
-      setIsSlashing(true);
-      setIsEnemyFlashing(true);
-      setTimeout(() => {
-        setIsSlashing(false);
-        setIsEnemyFlashing(false);
-      }, 300);
-    } else {
-      addFloatingText(feedback, "miss");
-      setActionLog(logMsg);
-    }
-
-    const upcomingBossHp = bossHpRef.current;
-    const isBossDead = upcomingBossHp <= 0;
-
-    // Trigger snappy retaliation if boss survives
-    if (!isBossDead) {
-      setTimeout(() => {
-        if (bossHpRef.current > 0 && battleOutcomeRef.current === "ongoing") {
-          enemyRetaliation(damageToBoss === 0);
-        }
-      }, 150);
-    }
-
-    // Snappily resets the slider pointer and maintains fight state for consecutive strikes
-    setTimeout(() => {
-      if (bossHpRef.current > 0 && battlePlayerHpRef.current > 0 && battleOutcomeRef.current === "ongoing") {
-        const initialPos = Math.random() * 40 + 10;
-        setSliderPosition(initialPos);
-        sliderPositionRef.current = initialPos;
-        directionRef.current = Math.random() > 0.5 ? 1 : -1;
-        startTimeRef.current = Date.now();
-        setIsSliderFrozen(false); // restarts animateSlider automatically inside useEffect
-        setIsCooldown(false);
-      } else {
-        // If battle finished, exit active slider mode
-        setIsPlayingSlider(false);
-        setIsSliderFrozen(false);
-        setIsCooldown(false);
-      }
-    }, 1000);
-  };
-
-  // Enemy Turn
-  const enemyRetaliation = (wasPlayerMiss: boolean) => {
-    if (battleOutcomeRef.current !== "ongoing") return;
-
-    // Boss has higher hit chance if player missed
-    const isHit = wasPlayerMiss ? Math.random() < 0.85 : Math.random() < 0.45;
-    
-    if (isHit) {
-      let bossDamage = wasPlayerMiss ? 12 : 6;
-      let defenseLog = "";
-      let reductionPercent = 0;
-
-      if (hasNoiseHelmet && currentBossIndex === 1) {
-        reductionPercent += 30;
-        defenseLog += " [HELMET -30%]";
-      }
-
-      if (hasBootsMomentum) {
-        const streakDefense = Math.min(50, currentStreak * 3);
-        reductionPercent += streakDefense;
-        defenseLog += ` [BOOTS MOMENTUM -${streakDefense}%]`;
-      }
-
-      if (reductionPercent > 0) {
-        const afterReduction = Math.max(1, Math.round(bossDamage * (1 - Math.min(80, reductionPercent) / 100)));
-        bossDamage = afterReduction;
-      }
-
-      const nextPlayerHp = Math.max(0, battlePlayerHpRef.current - bossDamage);
-      setBattlePlayerHp(nextPlayerHp);
-      battlePlayerHpRef.current = nextPlayerHp;
-      setPlayerHp(nextPlayerHp); // Sync to parent state
-      
-      addFloatingText(`-${bossDamage} HP`, "boss-attack");
-      setIsScreenShaking(true);
-      setTimeout(() => setIsScreenShaking(false), 400);
-
-      if (nextPlayerHp <= 0) {
-        setBattleOutcome("defeat");
-        setActionLog(`DEFEAT! ${bossName}'s shadow bind overwhelms your senses.`);
-        setIsPlayingSlider(false);
-      } else {
-        setActionLog(`${bossName} counters with shadow levitation spikes!${defenseLog}`);
-      }
-    } else {
-      addFloatingText("EVADED!", "heal");
-      setActionLog(`${bossName} sweeps down, but you dodge his shadow claws!`);
-    }
-  };
-
-  const handleUseFiveMinuteFuse = () => {
-    if (fiveMinuteFuseCount <= 0 || battleOutcome !== "ongoing" || isTransitioning) return;
-
-    // Expand 1 fuse
-    const nextCount = fiveMinuteFuseCount - 1;
-    setFiveMinuteFuseCount(nextCount);
-
-    // Deals 20 damage completely bypassing shields
-    const damageToBoss = 20;
+    // Process Boss Damage
     const nextBossHp = Math.max(0, bossHpRef.current - damageToBoss);
     setBossHp(nextBossHp);
     bossHpRef.current = nextBossHp;
     updateBossHp(nextBossHp);
 
-    addFloatingText("FUSE SHOCK!", "perfect", damageToBoss);
+    addFloatingText(feedback, type, damageToBoss);
+
+    // Dynamic graphic effects
+    setIsSlashing(true);
+    setIsEnemyFlashing(true);
     setIsScreenShaking(true);
-    setTimeout(() => setIsScreenShaking(false), 450);
 
-    setActionLog(
-      "💣 5-MINUTE RULE ACTIVATED! You tell yourself you'll do a habit for just 5 minutes, tricking your brain into executing action. The 5-Minute Fuse explodes, dealing 20 pure bypass damage to the boss!"
-    );
+    setTimeout(() => {
+      setIsSlashing(false);
+      setIsEnemyFlashing(false);
+      setIsScreenShaking(false);
+    }, 250);
 
+    // Check boss defeat
     if (nextBossHp <= 0) {
-      if (currentBossIndex === 0) {
-        setActionLog("Midnight Glutton is defeated! But suddenly, Dr. Distraction blocks your path!");
-        addFloatingText("BOSS DEFEATED!", "heal");
-        addXp(75);
-        addCredits(100);
-        hasJustDefeatedPreviousRef.current = true;
-        
-        // Secure stage checkpoint in Firestore and parent state immediately
-        updateBossIndex(1);
-        updateBossHp(null);
+      handleBossDefeat();
+      return;
+    } else {
+      setActionLog(logMsg);
+    }
 
-        setIsPlayingSlider(false);
-        setIsSliderFrozen(true);
-        setIsCooldown(false);
-        if (requestRef.current) {
-          cancelAnimationFrame(requestRef.current);
-        }
-
-        // Trigger decision menu
-        setDecisionNextBossIndex(1);
-        setTimeout(() => {
-          setShowDecisionMenu(true);
-        }, 1000);
-      } else if (currentBossIndex === 1) {
-        setActionLog("Dr. Distraction is defeated! But the system's core ruptures... The Tomorrow Titan rises!");
-        addFloatingText("BOSS DEFEATED!", "heal");
-        addXp(125);
-        addCredits(175);
-        hasJustDefeatedPreviousRef.current = true;
-        
-        // Secure stage checkpoint in Firestore and parent state immediately
-        updateBossIndex(2);
-        updateBossHp(null);
-
-        setIsPlayingSlider(false);
-        setIsSliderFrozen(true);
-        setIsCooldown(false);
-        if (requestRef.current) {
-          cancelAnimationFrame(requestRef.current);
-        }
-
-        // Trigger decision menu
-        setDecisionNextBossIndex(2);
-        setTimeout(() => {
-          setShowDecisionMenu(true);
-        }, 1000);
-      } else {
-        // Ultimate Tomorrow Titan Defeated
-        setBattleOutcome("victory");
-        battleOutcomeRef.current = "victory";
-        addXp(150);
-        addCredits(500);
-        setActionLog("CELESTIAL VICTORY! The Tomorrow Titan is obliterated and the cycle resets!");
-        addFloatingText("TITAN OVERTHROWN!", "heal");
-        setTriBossChampion(true);
-        setIsPlayingSlider(false);
-        setIsSliderFrozen(true);
-        setIsCooldown(false);
-        if (requestRef.current) {
-          cancelAnimationFrame(requestRef.current);
-        }
-        updateBossHp(null);
+    // Retaliation stroke if survives
+    setTimeout(() => {
+      if (bossHpRef.current > 0 && battleOutcomeRef.current === "ongoing") {
+        enemyRetaliation();
       }
+    }, 300);
+
+    // Reboot slider automatically for persistent play
+    setTimeout(() => {
+      if (bossHpRef.current > 0 && battlePlayerHpRef.current > 0 && battleOutcomeRef.current === "ongoing") {
+        setIsSliderFrozen(false);
+        setIsCooldown(false);
+        setSliderPosition(Math.random() > 0.5 ? 5 : 95);
+      }
+    }, 1100);
+  };
+
+  // Enemy Counter-attack AI
+  const enemyRetaliation = () => {
+    if (battleOutcomeRef.current !== "ongoing") return;
+
+    // Boss counters hard
+    const isHit = Math.random() < 0.65;
+    if (isHit) {
+      if (activeShields > 0) {
+        // Shield absorbed
+        setActiveShields((prev) => prev - 1);
+        addFloatingText("SHIELD BLOCKED!", "heal");
+        setActionLog("Midnight Glutton tries to bite you, but your active shield absorbs the impact totally!");
+        return;
+      }
+
+      let bossDamage = 18;
+      let defenseMsg = "";
+
+      if (isHelmetFortified) {
+        bossDamage = Math.round(bossDamage * 0.5);
+        setIsHelmetFortified(false);
+        defenseMsg = " [FORIFIED HELMET -50%]";
+      } else if (hasNoiseHelmet) {
+        bossDamage = Math.round(bossDamage * 0.82);
+        defenseMsg = " [STATIC HELMET -18%]";
+      }
+
+      const nextPlayerHp = Math.max(0, battlePlayerHpRef.current - bossDamage);
+      setBattlePlayerHp(nextPlayerHp);
+      battlePlayerHpRef.current = nextPlayerHp;
+
+      addFloatingText(`-${bossDamage} HP`, "boss-attack");
+      setIsScreenShaking(true);
+      setTimeout(() => setIsScreenShaking(false), 250);
+
+      if (nextPlayerHp <= 0) {
+        setBattleOutcome("defeat");
+        setActionLog(`DEFEATED! Midnight Glutton's shadow bind consumes your resolve.`);
+        setIsPlayingSlider(false);
+      } else {
+        setActionLog(`Midnight Glutton retaliates with Horn Smash!${defenseMsg}`);
+      }
+    } else {
+      addFloatingText("EVADED!", "heal");
+      setActionLog("You somersault away! Midnight Glutton's shadow claws miss you completely.");
     }
   };
 
+  // Bomb Fuse execution
+  const triggerBombFuse = () => {
+    if (battleOutcome !== "ongoing" || isTransitioning) return;
+
+    // Use up one fuse
+    if (fiveMinuteFuseCount > 0) {
+      setFiveMinuteFuseCount(fiveMinuteFuseCount - 1);
+    }
+
+    const damageToBoss = 80;
+    const nextBossHp = Math.max(0, bossHpRef.current - damageToBoss);
+    setBossHp(nextBossHp);
+    bossHpRef.current = nextBossHp;
+    updateBossHp(nextBossHp);
+
+    addFloatingText("BOMB BOOM!", "perfect", damageToBoss);
+    setIsScreenShaking(true);
+    setTimeout(() => setIsScreenShaking(false), 350);
+    setActionLog("💣 BOMB DETONATED! High kinetic detonation strikes Midnight Glutton directly!");
+
+    if (nextBossHp <= 0) {
+      handleBossDefeat();
+    }
+  };
+
+  // Stage clear handler
+  const handleBossDefeat = () => {
+    if (currentBossIndex === 0) {
+      setActionLog("Midnight Glutton is defeated! But Dr. Distraction has arrived to intercept you!");
+      addFloatingText("BOSS DEFEATED!", "heal");
+      addXp(120);
+      addCredits(150);
+
+      // Save progression values
+      updateBossIndex(1);
+      updateBossHp(null);
+      setDecisionNextBossIndex(1);
+      setTimeout(() => {
+        setShowDecisionMenu(true);
+      }, 1200);
+    } else if (currentBossIndex === 1) {
+      setActionLog("Dr. Distraction is vanquished! But the ultimate Tomorrow Titan has materialized!");
+      addFloatingText("BOSS DEFEATED!", "heal");
+      addXp(180);
+      addCredits(250);
+
+      updateBossIndex(2);
+      updateBossHp(null);
+      setDecisionNextBossIndex(2);
+      setTimeout(() => {
+        setShowDecisionMenu(true);
+      }, 1200);
+    } else {
+      setBattleOutcome("victory");
+      addXp(300);
+      addCredits(600);
+      setActionLog("CELESTIAL HERO VICTORY! The Tomorrow Titan is eradicated and the system realm is liberated!");
+      setTriBossChampion(true);
+    }
+
+    setIsPlayingSlider(false);
+    if (requestRef.current) {
+      cancelAnimationFrame(requestRef.current);
+    }
+  };
+
+  // Next Boss progression Choice
   const handleFightNextEnemy = () => {
     if (decisionNextBossIndex === null) return;
-    
     const nextIndex = decisionNextBossIndex;
     const nextBoss = bossList[nextIndex];
-    if (!nextBoss) return;
 
     setIsTransitioning(true);
     setShowDecisionMenu(false);
     setDecisionNextBossIndex(null);
 
-    // Reset/clear any mid-battle saved HP since we are moving to next boss
     updateBossHp(null);
-
-    // Load next boss details immediately
     setCurrentBossIndex(nextIndex);
     setBossHp(nextBoss.maxHp);
     bossHpRef.current = nextBoss.maxHp;
 
-    // Reset combat stats & controllers
     setBattlePlayerHp(100);
     battlePlayerHpRef.current = 100;
-    setPlayerHp(100);
-    setIsPlayingSlider(false);
+
+    setIsPlayingSlider(true);
     setIsSliderFrozen(false);
     setIsCooldown(false);
     setIsTransitioning(false);
-
-    if (nextIndex === 1) {
-      setActionLog("Face Dr. Distraction! Beware of his cyclic cognitive loops...");
-    } else if (nextIndex === 2) {
-      setActionLog("Slay The Tomorrow Titan! The final titan of system clutter...");
-    }
+    setActionLog(`A new threat emerges! Battle ${nextBoss.name}!`);
   };
 
   const handleReturnToHub = () => {
@@ -601,318 +460,289 @@ export default function BattleView({
     onRetreat();
   };
 
-  const handleRetreatEmergency = () => {
-    // Instantly freeze/pause active combat state
-    setIsPlayingSlider(false);
-    setIsSliderFrozen(true);
-    setIsCooldown(false);
-    
-    if (requestRef.current) {
-      cancelAnimationFrame(requestRef.current);
-    }
-
-    // Securely save current progress and state details
-    updateBossHp(bossHpRef.current);
-    updateBossIndex(currentBossIndex);
-
-    // Gracefully redirect back to the main app hub
-    onRetreat();
-  };
-
-  const handleFinalVictoryReturn = () => {
-    // Clear mid-battle saved boss HP
-    updateBossHp(null);
-    // Reset progression loop back to Midnight Glutton (0)
-    updateBossIndex(0);
-    // Return to the main hub dashboard
-    onRetreat();
-  };
-
   const handleRestartBattle = () => {
     const boss = bossList[currentBossIndex] || bossList[0];
     setBossHp(boss.maxHp);
     bossHpRef.current = boss.maxHp;
-    updateBossHp(null); // Clean up the saved HP when restarting clean
+    updateBossHp(null);
+
     setBattlePlayerHp(100);
     battlePlayerHpRef.current = 100;
-    setPlayerHp(100); // Sync reset HP to parent state
+
     setBattleOutcome("ongoing");
-    setIsPlayingSlider(false);
+    setIsPlayingSlider(true);
+    setIsSliderFrozen(false);
+    setIsCooldown(false);
     setIsTransitioning(false);
-    setActionLog(`You re-entered the battlefield. Face ${boss.name}!`);
+    setActionLog(`You returned to battle. Face the demonic ${boss.name}!`);
     setFloatingTexts([]);
   };
 
-  // Cleanup floatings
-  useEffect(() => {
-    if (floatingTexts.length > 5) {
-      setFloatingTexts((prev) => prev.slice(prev.length - 5));
-    }
-  }, [floatingTexts]);
+  // Safely save user completed state and return back to app dashboard
+  const handleUltimateVictoryReturn = () => {
+    setIsPlayingSlider(false);
+    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    updateBossIndex(0); // Reset boss progression stage loop
+    updateBossHp(null); // Clear transient boss HP
+    setTriBossChampion(true); // Persist ultimate victory state
+    onRetreat(); // Smooth redirection to the main app dashboard hub
+  };
 
-  // Clean actionLog after 2 seconds except for initial entry message
-  useEffect(() => {
-    if (
-      actionLog &&
-      actionLog !== "Face the hooded villain in the dark alleyway..." &&
-      actionLog !== "You re-entered the dark alleyway. Let the duel begin!"
-    ) {
-      const timer = setTimeout(() => {
-        setActionLog("");
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [actionLog]);
+  // Handles clicking retreat
+  const handleEscapeRetreat = () => {
+    setIsPlayingSlider(false);
+    if (requestRef.current) cancelAnimationFrame(requestRef.current);
 
-  // Real-time inactivity / passive damage tracker
-  useEffect(() => {
-    let passiveDamageInterval: NodeJS.Timeout | null = null;
+    // Save transient levels safely
+    updateBossHp(bossHpRef.current);
+    updateBossIndex(currentBossIndex);
 
-    if (isPlayingSlider && !isSliderFrozen && battleOutcome === "ongoing" && !isTransitioning) {
-      passiveDamageInterval = setInterval(() => {
-        if (battleOutcomeRef.current !== "ongoing" || isTransitioning) return;
+    // Escape back to central hub
+    onRetreat();
+  };
 
-        // Deal dynamic damage for remaining inactive / not hitting
-        const passiveDamage = 5; // Little by little over time
-        const nextPlayerHp = Math.max(0, battlePlayerHpRef.current - passiveDamage);
+  if (battleOutcome === "victory") {
+    return (
+      <div 
+        id="ultimate-victory-celebration-canvas"
+        className="relative w-full max-w-md mx-auto my-4 rounded-3xl border-4 border-yellow-500 bg-[#060814] shadow-[0_0_50px_rgba(234,179,8,0.55)] overflow-hidden flex flex-col font-mono text-white justify-between p-6 text-center min-h-[580px]"
+      >
+        {/* Animated ambient cosmic sparkles backdrop */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-yellow-950/40 via-[#060814]/90 to-black pointer-events-none" />
         
-        setBattlePlayerHp(nextPlayerHp);
-        battlePlayerHpRef.current = nextPlayerHp;
-        setPlayerHp(nextPlayerHp); // Sync with parent state
+        {/* Top Celebration Title Header */}
+        <div className="relative z-10 flex flex-col items-center pt-6">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: [0, 1.25, 1] }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="mb-4"
+          >
+            <Trophy className="w-20 h-20 text-yellow-400 drop-shadow-[0_0_15px_rgba(234,179,8,0.8)] animate-bounce" />
+          </motion.div>
+          
+          <motion.h1 
+            initial={{ y: -30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-yellow-400 text-xl font-black tracking-widest uppercase mt-2 text-shadow-glow"
+          >
+            Stage Cleared!
+          </motion.h1>
+          <motion.div 
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="w-24 h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent my-3"
+          />
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="text-green-500 text-green-400 font-extrabold text-[11px] uppercase tracking-wider"
+          >
+            🏆 System Realm Liberated 🏆
+          </motion.p>
+        </div>
 
-        addFloatingText(`-${passiveDamage} HP`, "boss-attack");
-        setIsScreenShaking(true);
-        setTimeout(() => setIsScreenShaking(false), 200);
+        {/* Dynamic Boss Defeated Summary & Reward Metrics */}
+        <div className="relative z-10 bg-slate-950/80 border-2 border-yellow-500/25 rounded-2xl p-5 mx-2 my-2 shadow-[0_4px_24px_rgba(0,0,0,0.65)] flex flex-col gap-3">
+          <div className="text-left space-y-2.5">
+            <h4 className="text-yellow-500 text-[10px] font-black uppercase tracking-wider text-center border-b border-yellow-500/15 pb-2">
+              🛡️ CAMPAIGN STAGE RECAP
+            </h4>
+            
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-gray-400 font-medium">1. Midnight Glutton:</span>
+              <span className="text-green-400 font-extrabold uppercase">DEFEATED</span>
+            </div>
+            
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-gray-400 font-medium">2. Dr. Distraction:</span>
+              <span className="text-green-400 font-extrabold uppercase">OBLITERATED</span>
+            </div>
+            
+            <div className="flex justify-between items-center text-[11px]">
+              <span className="text-gray-400 font-medium">3. Tomorrow Titan:</span>
+              <span className="text-green-400 font-extrabold uppercase">PURGED</span>
+            </div>
+          </div>
 
-        setActionLog(`${bossName} absorbs your life energy while you remain inactive!`);
+          <div className="border-t border-yellow-500/15 pt-3 text-center mt-1">
+            <span className="text-yellow-400 text-[9px] font-black tracking-widest uppercase block mb-1.5">
+              STAGE COMPLETION BONUSES
+            </span>
+            <div className="flex justify-center gap-3 text-xs font-black">
+              <div className="bg-yellow-950/30 border border-yellow-500/35 px-2.5 py-1 rounded-lg text-yellow-300">
+                ✨ +300 XP
+              </div>
+              <div className="bg-cyan-950/30 border border-cyan-500/35 px-2.5 py-1 rounded-lg text-cyan-300">
+                🪙 +600 Credits
+              </div>
+            </div>
+          </div>
+        </div>
 
-        if (nextPlayerHp <= 0) {
-          setBattleOutcome("defeat");
-          setActionLog(`DEFEAT! Overwhelmed by ${bossName}'s passive life drain from hesitation.`);
-          // Stop slider
-          setIsPlayingSlider(false);
-          setIsSliderFrozen(false);
-          if (requestRef.current) {
-            cancelAnimationFrame(requestRef.current);
-          }
-        }
-      }, 1500); // every 1.5s of inactivity
-    }
-
-    return () => {
-      if (passiveDamageInterval) {
-        clearInterval(passiveDamageInterval);
-      }
-    };
-  }, [isPlayingSlider, isSliderFrozen, battleOutcome, setPlayerHp, isTransitioning, bossName]);
+        {/* Restrict UI navigation: Only ONE explicit Action Button */}
+        <div className="relative z-10 pb-4 pt-1 px-1 flex flex-col gap-2">
+          <p className="text-[9px] text-gray-500 font-medium tracking-wide uppercase leading-normal">
+            Completed stage data is securely saved to core databank.
+          </p>
+          <button
+            id="ultimate-victory-return-hub-btn"
+            onClick={handleUltimateVictoryReturn}
+            className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-450 hover:to-amber-450 border-2 border-yellow-300 text-black font-black py-3.5 px-5 rounded-xl flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all shadow-[0_4px_15px_rgba(234,179,8,0.45)] uppercase text-[13px]"
+          >
+            <Trophy className="w-4 h-4 text-black animate-spin shrink-0" />
+            <span>Return to Hub</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`relative w-[95%] mx-auto mt-4 select-none overflow-hidden rounded-2xl border-4 border-[#121312] md:max-w-md bg-[#121312] shadow-[8px_8px_0px_0px_#1C0770] flex flex-col ${
-      isScreenShaking ? "animate-bounce" : ""
-    }`}>
-      
-      {/* Rectangle top Boss status layout */}
-      <div className="w-full bg-[#1C0770] border-b-4 border-[#121312] p-3 flex flex-col gap-1.5 shrink-0">
-        <div className="flex justify-between items-center">
-          <span className="font-display-hero text-red-500 text-xl tracking-wider uppercase text-stroke-black">
-            {currentBossIndex === 1 ? "🧠" : currentBossIndex === 2 ? "👹" : "👿"} BOSS: {bossName}
-          </span>
-          <span className="font-pixel text-[9px] text-red-400">
-            HP {bossHp} / {maxBossHp}
-          </span>
+    <div 
+      id="midnight-glutton-battle-screen" 
+      className={`relative w-full max-w-md mx-auto my-4 transition-all duration-300 rounded-3xl border-4 border-[#1c1d2e] bg-[#0c0d12] shadow-[0_0_40px_rgba(28,29,46,0.8)] overflow-hidden flex flex-col font-mono text-white ${
+        isScreenShaking ? "translate-x-1.5 translate-y-1.5 duration-75" : ""
+      }`}
+    >
+      {/* 1. TOP HEALTH BARS SEGMENT (Above viewport exactly as depicted) */}
+      <div id="battle-healthbar-header" className="w-full bg-[#10121a] p-4 border-b border-[#1f2330] flex flex-col gap-3 relative z-10 shrink-0">
+        
+        {/* MIDNIGHT GLUTTON - [100 HP] DYNAMIC */}
+        <div id="midnight-glutton-hp-wrapper" className="flex flex-col gap-1">
+          <div className="flex justify-between items-center text-xs tracking-wider">
+            <span className="text-red-500 font-black flex items-center gap-1.5 uppercase">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+              👹 {bossName} - [{maxBossHp} HP]
+            </span>
+            <span className="text-red-400 font-extrabold uppercase text-[11px] bg-red-950/40 px-2 py-0.5 rounded border border-red-900/55">
+              [{maxBossHp} HP]
+            </span>
+          </div>
+          <div className="h-5 bg-gray-950 rounded-md p-0.5 border border-red-905 border-red-700/60 overflow-hidden relative shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]">
+            <motion.div
+              className="h-full bg-gradient-to-r from-red-800 via-red-600 to-amber-600 rounded-sm relative"
+              animate={{ width: `${(bossHp / maxBossHp) * 100}%` }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[size:10px_10px] opacity-30 animate-[pulse_1s_infinite]" />
+            </motion.div>
+            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-stroke-black drop-shadow-md">
+              {bossHp} / {maxBossHp} HP
+            </div>
+          </div>
         </div>
-        <div className="h-3.5 bg-gray-950 rounded-full border-2 border-red-950 overflow-hidden relative">
-          <motion.div
-            className="h-full bg-red-650"
-            style={{ backgroundColor: "#dc2626" }}
-            animate={{ width: `${(bossHp / maxBossHp) * 100}%` }}
-            transition={{ duration: 0.3 }}
-          />
-          {/* Striped overlay for health cells */}
-          <div className="absolute inset-0 bg-stripes opacity-30 pointer-events-none" />
+
+        {/* HERO [100 HP] */}
+        <div id="hero-hp-wrapper" className="flex flex-col gap-1">
+          <div className="flex justify-between items-center text-xs tracking-wider">
+            <span className="text-[#3A9AFF] font-black flex items-center gap-1.5 uppercase">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              ⚔️ HERO (YOU)
+            </span>
+            <span className="text-cyan-400 font-extrabold uppercase text-[11px] bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-900/55">
+              [100 HP]
+            </span>
+          </div>
+          <div className="h-5 bg-gray-950 rounded-md p-0.5 border border-[#3A9AFF]/50 overflow-hidden relative shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]">
+            <motion.div
+              className="h-full bg-gradient-to-r from-teal-500 via-cyan-500 to-[#3A9AFF] rounded-sm relative"
+              animate={{ width: `${(battlePlayerHp / battleMaxPlayerHp) * 100}%` }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[size:10px_10px] opacity-25" />
+            </motion.div>
+            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-stroke-black drop-shadow-md">
+              {battlePlayerHp} / {battleMaxPlayerHp} HP
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Compressed Widescreen 16:10 Epic Battle Arena background */}
+      {/* 2. CENTRAL VIEWPORT (100% exact high-fidelity replication arena background) */}
       <div 
+        id="battle-central-viewport"
         onClick={() => {
-          if (isPlayingSlider && !isSliderFrozen) {
-            handleStopSlider();
-          }
+          if (isPlayingSlider && !isSliderFrozen) handleStopSlider();
         }}
-        className={`relative w-full aspect-[16/10] overflow-hidden bg-[#1D1E2C] border-b-4 border-[#121312] shrink-0 ${
-          isPlayingSlider && !isSliderFrozen ? "cursor-pointer active:scale-[0.98] transition-transform duration-75" : ""
+        className={`relative w-full aspect-[4/3] bg-[#090b0e] border-y-4 border-[#1f2330] overflow-hidden shrink-0 group ${
+          isPlayingSlider && !isSliderFrozen ? "cursor-pointer active:scale-[0.99] transition-transform duration-75" : ""
         }`}
       >
+        {/* Exact scene as background image aligned vertically upward to center sprites perfectly */}
         <div 
-          className={`absolute inset-0 bg-cover bg-top transition-all duration-300 brightness-125 saturate-110 scale-100 ${
-            isEnemyFlashing ? "brightness-150 contrast-125 saturate-150" : ""
+          className={`absolute inset-0 transition-all duration-300 scale-100 ${
+            isEnemyFlashing ? "brightness-150 contrast-125 saturate-200 hue-rotate-15" : "brightness-110 saturate-100"
           }`}
           style={{
             backgroundImage: `url('${currentBoss.bgUrl}')`,
+            backgroundPosition: (currentBoss as any).bgPosition || "center 5%",
+            backgroundSize: (currentBoss as any).bgSize || "108% 108%",
+            transform: `translateY(${(currentBoss as any).verticalOffset || "-24px"})`,
+            backgroundRepeat: "no-repeat"
           }}
-        >
-          {/* Subtle Rainy overlay with lighter opacity for high contrast background visibility */}
-          <div className="absolute inset-0 bg-black/10 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:4px_20px] pointer-events-none opacity-80" />
-        </div>
+        />
 
-        {/* Mid-Battle Emergency Escape Retreat Option */}
-        {battleOutcome === "ongoing" && (
-          <button
-            id="emergency-battle-retreat-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRetreatEmergency();
-            }}
-            className="absolute top-2 right-2 bg-[#991b1b] hover:bg-red-700 text-white font-pixel text-[8px] tracking-wider px-2.5 py-1.5 rounded-md border-2 border-black flex items-center justify-center gap-1 z-30 cursor-pointer shadow-[0_3px_6px_rgba(0,0,0,0.6)] active:scale-95 transition-all text-stroke-black select-none font-bold uppercase hover:shadow-[0_0_12px_rgba(220,38,38,0.5)]"
-          >
-            <LogOut className="w-2.5 h-2.5 shrink-0 animate-pulse" />
-            <span>Retreat</span>
-          </button>
+        {/* Ambient grid horizon atmospheric overlay style */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
+
+        {/* Interactive tactical shields display overlay if activated */}
+        {activeShields > 0 && (
+          <div className="absolute inset-0 border-4 border-cyan-400/50 rounded-xl m-3 pointer-events-none animate-pulse">
+            <div className="absolute top-2 left-2 bg-cyan-900/80 px-2 py-0.5 rounded border border-cyan-400 text-[8px] text-cyan-300 font-extrabold uppercase">
+              ACTIVE S-SHIELDS: {activeShields}
+            </div>
+          </div>
         )}
 
-        {/* Comic slash animation */}
+        {/* Comic slash animation effect when striking */}
         <AnimatePresence>
           {isSlashing && (
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: [1, 1.25, 1] }}
+              animate={{ opacity: 1, scale: [1, 1.3, 1] }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.25 }}
               className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none"
             >
-              <div className="w-full h-4 bg-white border-y-2 border-yellow-450 rotate-6 shadow-[0_0_15px_#f59e0b] animate-pulse" />
-              <div className="absolute w-full h-1 bg-[#3a9aff] -rotate-6 shadow-[0_0_12px_#3a9aff]" />
+              <div className="w-full h-6 bg-white border-y-4 border-yellow-400 rotate-12 shadow-[0_0_20px_#fbbf24] animate-ping" />
+              <div className="absolute w-full h-1.5 bg-[#3A9AFF] -rotate-12 shadow-[0_0_15px_#3A9AFF]" />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Epic Victory Celebration State Overlay */}
-        {battleOutcome === "victory" && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="absolute inset-0 bg-black/90 z-40 flex flex-col items-center justify-center p-3 text-center border-3 border-yellow-400 m-2 rounded-lg shadow-[0_0_30px_rgba(234,179,8,0.7)]"
-          >
-            <motion.div
-              animate={{
-                scale: [1, 1.12, 0.98, 1.12, 1],
-                rotate: [0, 4, -4, 4, 0],
-              }}
-              transition={{
-                duration: 2.5,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              className="mb-1 text-yellow-400 filter drop-shadow-[0_0_15px_rgba(234,179,8,1)]"
-            >
-              <Trophy className="w-12 h-12" />
-            </motion.div>
-
-            <h2 className="font-pixel text-[10px] md:text-xs text-yellow-400 tracking-wider mb-1 animate-bounce uppercase">
-              👑 CELESTIAL VICTORY 👑
-            </h2>
-            <p className="font-pixel text-[7px] text-green-400 tracking-tight leading-relaxed uppercase mb-2">
-              The Tomorrow Titan Overthrown!
-            </p>
-
-            {/* Falling pixelated confetti simulation using standard divs and keyframes/motion */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              {[...Array(15)].map((_, i) => (
-                <motion.div
-                  key={`gold-${i}`}
-                  className="absolute w-1 h-1 bg-yellow-400 rounded-none"
-                  initial={{
-                    left: `${Math.random() * 100}%`,
-                    top: `-10px`,
-                    opacity: Math.random() * 0.7 + 0.3,
-                  }}
-                  animate={{
-                    top: `110%`,
-                    left: `${Math.sin(i) * 15 + Math.random() * 100}%`,
-                  }}
-                  transition={{
-                    duration: Math.random() * 2 + 1.2,
-                    repeat: Infinity,
-                    ease: "linear",
-                    delay: Math.random() * 1.5,
-                  }}
-                />
-              ))}
-              {[...Array(12)].map((_, i) => (
-                <motion.div
-                  key={`cyan-${i}`}
-                  className="absolute w-1.5 h-1.5 bg-cyan-400 rounded-none"
-                  initial={{
-                    left: `${Math.random() * 100}%`,
-                    top: `-10px`,
-                    opacity: Math.random() * 0.8 + 0.2,
-                  }}
-                  animate={{
-                    top: `110%`,
-                    left: `${Math.cos(i) * 20 + Math.random() * 100}%`,
-                  }}
-                  transition={{
-                    duration: Math.random() * 2.5 + 1.5,
-                    repeat: Infinity,
-                    ease: "linear",
-                    delay: Math.random() * 1.5,
-                  }}
-                />
-              ))}
-            </div>
-
-            <div className="font-pixel text-[7px] md:text-[8px] text-slate-300 leading-normal border-t border-b border-yellow-500/30 py-1.5 w-full max-w-[90%] text-center mb-4">
-              SYSTEM TIER ALL-CLEAR!<br />
-              <span className="text-yellow-400 font-bold block mt-1 animate-pulse">+150 XP AWARDED</span>
-              <span className="text-cyan-400 font-bold block mt-0.5 animate-pulse">+500 CREDITS AWARDED</span>
-            </div>
-
-            <button
-              id="fabulous-victory-return-btn"
-              onClick={handleFinalVictoryReturn}
-              className="btn-pixel w-full max-w-[80%] bg-[#22c55e] hover:bg-[#16a34a] text-black hover:text-white border-2 border-black p-2 rounded-lg font-pixel text-[9px] uppercase text-center font-bold flex items-center justify-center gap-2 select-none active:scale-95 transition-all shadow-[0_0_15px_rgba(34,197,94,0.6)] cursor-pointer z-50 pointer-events-auto"
-            >
-              <LogOut className="w-4 h-4 shrink-0" />
-              RETURN TO HUB
-            </button>
-          </motion.div>
-        )}
-
-        {/* Floating Damage Text Indicators */}
+        {/* Floating texts & damage multipliers */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-30">
           <AnimatePresence>
             {floatingTexts.map((txt) => {
-              let textClass = "absolute font-pixel uppercase text-stroke-black text-center tracking-normal ";
+              let colorClasses = "text-white text-stroke-black font-extrabold";
               if (txt.type === "perfect") {
-                // Bright yellow or gold flashing text
-                textClass += "text-yellow-400 text-xs md:text-sm drop-shadow-[0_0_12px_rgba(234,179,8,1)] animate-pulse";
+                colorClasses = "text-yellow-450 text-yellow-400 text-lg drop-shadow-[0_0_12px_rgba(234,179,8,1)] animate-bounce";
               } else if (txt.type === "good") {
-                // Vibrant green or cyan text
-                textClass += "text-cyan-400 text-[10px] md:text-xs drop-shadow-[0_0_8px_rgba(34,211,238,0.9)]";
-              } else if (txt.type === "okay") {
-                // Standard white or orange text
-                textClass += "text-orange-400 text-[9px] md:text-[10px]";
+                colorClasses = "text-cyan-400 text-sm drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]";
               } else if (txt.type === "boss-attack") {
-                textClass += "text-red-500 text-[9px] md:text-[10px]";
+                colorClasses = "text-red-500 text-sm drop-shadow-[0_0_10px_rgba(239,68,68,0.85)] animate-bounce";
               } else if (txt.type === "heal") {
-                textClass += "text-teal-400 text-[9px] md:text-[10px]";
-              } else {
-                textClass += "text-gray-400 text-[9px] md:text-[10px]";
+                colorClasses = "text-teal-400 text-sm drop-shadow-[0_0_10px_rgba(20,184,166,0.8)]";
+              } else if (txt.type === "item") {
+                colorClasses = "text-amber-400 text-xs drop-shadow-[0_0_6px_rgba(245,158,11,0.8)]";
               }
 
               return (
                 <motion.div
                   key={txt.id}
-                  initial={{ opacity: 0, scale: 0.5, y: 30 + (txt.yOffset || 0), x: (txt.xOffset || 0) }}
-                  animate={{ opacity: 1, scale: [0.7, 1.2, 1.0], y: -50 + (txt.yOffset || 0), x: (txt.xOffset || 0) }}
-                  exit={{ opacity: 0, scale: 0.8, y: -75 + (txt.yOffset || 0) }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                  className={textClass}
+                  initial={{ opacity: 0, scale: 0.6, y: 40 }}
+                  animate={{ opacity: 1, scale: [0.8, 1.25, 1], y: -30 }}
+                  exit={{ opacity: 0, y: -60 }}
+                  transition={{ duration: 0.7, ease: "easeOut" }}
+                  className={`absolute text-center ${colorClasses}`}
                 >
-                  <div>{txt.text}</div>
+                  <span className="uppercase text-shadow-glow text-[13px] tracking-widest">{txt.text}</span>
                   {txt.damage !== undefined && txt.damage > 0 && (
-                    <div className="text-[8px] md:text-[9px] text-red-500 font-pixel mt-0.5 animate-bounce">
+                    <div className="text-xs text-red-500 font-black mt-1 animate-pulse font-mono block">
                       -{txt.damage} HP
                     </div>
                   )}
@@ -922,299 +752,320 @@ export default function BattleView({
           </AnimatePresence>
         </div>
 
-        {/* Universal Post-Battle Decision Menu Dialogue Overlay */}
-        {showDecisionMenu && (
-          <div className="absolute inset-0 bg-[#000]/85 z-45 flex flex-col items-center justify-center p-4 text-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="bg-[#000b1d] border-4 border-yellow-400 p-4 rounded-xl max-w-[90%] text-center shadow-[0_0_20px_rgba(234,179,8,0.6)]"
-            >
-              <div className="font-pixel text-yellow-400 text-[10px] uppercase tracking-wider mb-2 animate-pulse">
-                🏆 STAGE CLEARED! 🏆
-              </div>
-              <p className="font-pixel text-[8px] text-green-400 leading-normal mb-3">
-                {decisionNextBossIndex === 1 
-                  ? "MIDNIGHT GLUTTON VANQUISHED!" 
-                  : "DR. DISTRACTION VANQUISHED!"}
-              </p>
-              <div className="font-pixel text-[7px] text-gray-300 leading-normal mb-3 border-t border-b border-gray-800 py-2">
-                REWARDS SECURED:<br/>
-                <span className="text-yellow-400 font-bold block mt-1">XP +{decisionNextBossIndex === 1 ? "75" : "125"}</span>
-                <span className="text-cyan-400 font-bold block mt-0.5">CREDITS +{decisionNextBossIndex === 1 ? "100" : "175"}</span>
-              </div>
-              <p className="font-sans text-[10px] text-teal-300 font-semibold italic px-1">
-                "{decisionNextBossIndex === 1 
-                  ? "But suddenly, Dr. Distraction blocks your path!" 
-                  : "But the system's core ruptures... The Tomorrow Titan rises!"}"
-              </p>
-            </motion.div>
+        {/* Interactive hover overlay button helper hint */}
+        {isPlayingSlider && !isSliderFrozen && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-xs px-3 py-1 rounded-full border border-white/10 text-[9px] text-gray-400 tracking-wider font-extrabold pointer-events-none uppercase opacity-80 group-hover:opacity-100 transition-opacity">
+            CLICK VIEWPORT OR TAP KEYBOARD TO ATTACK
           </div>
         )}
       </div>
 
-      {/* Cybernetic Combat Retinal Scan Log Overlay (Utilizing the newly saved vertical space beautifully) */}
-      <div className="w-full px-4 pt-3 pb-1 shrink-0 bg-[#121312]">
-        <div className="bg-black/95 border-2 border-[#3A9AFF]/30 p-2.5 rounded-xl text-left">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="w-1.5 h-1.5 bg-[#3A9AFF] rounded-full animate-ping shrink-0" />
-            <span className="font-pixel text-[8px] text-[#3A9AFF]/90 uppercase tracking-widest">RETINAL SCAN STATUS UPDATE</span>
-          </div>
-          <div className="min-h-[2.5rem] flex flex-col justify-center">
-            <AnimatePresence mode="wait">
-              {actionLog ? (
-                <motion.p
-                  key={actionLog}
-                  initial={{ opacity: 0, y: -2 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 2 }}
-                  transition={{ duration: 0.2 }}
-                  className="font-sans text-[11px] text-teal-300/90 leading-relaxed font-semibold italic"
-                >
-                  "{actionLog}"
-                </motion.p>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 0.4 }}
-                  className="text-[9px] text-[#3A9AFF]/60 font-pixel uppercase tracking-wider"
-                >
-                  [ SYSTEMS NOMINAL - READY FOR IMPACT ]
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+      {/* Action Logs Feed Overlay */}
+      <div className="w-full bg-[#0a0c10] px-4 py-2 flex flex-col justify-center border-b border-[#1f2330]">
+        <div className="bg-slate-950/80 border border-teal-900/50 px-3 py-2 rounded-lg flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-ping shrink-0" />
+          <p className="font-sans text-[11px] text-teal-300 font-semibold italic truncate">
+            {actionLog}
+          </p>
         </div>
       </div>
 
-      {/* PIXEL ACTIVE UI OVERLAY PANEL (Bottom Controls framed perfectly below background) */}
-      <div className="w-full bg-[#121312] p-4 flex-grow flex flex-col justify-center">
-        <div className={`ui-panel pixel-corners w-full relative flex bg-[#000b1d] border-4 p-3 text-left transition-all duration-200 ${
-          isCooldown 
-            ? "border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4),inset_0_0_10px_rgba(249,115,22,0.4)] animate-bounce" 
-            : "border-[#3A9AFF] shadow-[0_0_15px_#3A9AFF,inset_0_0_10px_#3A9AFF]"
-        } ${
-          isPlayingSlider 
-            ? "flex-col min-h-[185px] gap-3" 
-            : "flex-row justify-between items-stretch min-h-[120px]"
-        }`}>
+      {/* 3. BOTTOM CONSOLE SECTION (Active Slider Game + Inventory Bar) */}
+      <div id="battle-bottom-console" className="w-full p-4 flex-grow bg-[#0c0d12] flex flex-col gap-4">
+        
+        {/* Slider Combat Minigame */}
+        <div className="bg-[#04060b] border-2 border-[#3A9AFF]/80 p-3 rounded-2xl relative shadow-[0_0_20px_rgba(58,154,255,0.25)] flex flex-col gap-2">
           
-          {isPlayingSlider ? (
-            /* FULL-WIDTH UNDERTALE CRITICAL ATTACK MINI-GAME */
-            <div 
-              onClick={() => {
-                if (!isSliderFrozen && !isCooldown) {
-                  handleStopSlider();
-                }
-              }}
-              className="w-full h-full flex flex-col justify-between p-1 text-center select-none cursor-crosshair min-h-[105px]"
-            >
-              <div className="w-full flex justify-between items-center text-[9px] font-pixel text-gray-400 mb-1">
-                {isCooldown ? (
-                  <>
-                    <span className="text-orange-500 font-bold tracking-widest animate-pulse">
-                      ⚡ COOLDOWN IN ACTION
-                    </span>
-                    <span className="text-orange-300 font-bold">
-                      RECHARGING...
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-[#3A9AFF] font-bold tracking-widest animate-pulse">
-                      ⚔️ ATTACK PROTOCOL ACTIVE
-                    </span>
-                    <span className="text-yellow-400 font-bold">
-                      PRESS KEY OR CLICK TO STRIKE!
-                    </span>
-                  </>
-                )}
-              </div>
-              
-              {/* Undertale Style Target Bar with 5 segment zones */}
-              <div className={`w-full h-12 bg-black border-3 rounded-lg relative overflow-hidden shadow-[inset_0_0_12px_rgba(0,0,0,0.9)] mb-1 transition-colors duration-200 ${
-                isCooldown ? "border-orange-600/60" : "border-gray-400"
-              }`}>
-                {/* Left Outer Red Zone (0% - 20%) */}
-                <div className="absolute top-0 bottom-0 left-0 w-[20%] bg-red-600/35 flex items-center justify-center font-pixel text-[8px] text-red-300 select-none pointer-events-none border-r border-black/20">
-                  LOW
-                </div>
-                {/* Left Flanking Yellow Zone (20% - 40%) */}
-                <div className="absolute top-0 bottom-0 left-[20%] w-[20%] bg-yellow-500/35 flex items-center justify-center font-pixel text-[8px] text-yellow-200 select-none pointer-events-none border-r border-black/20">
-                  MID
-                </div>
-                {/* Center Green Zone (40% - 60%) */}
-                <div className="absolute top-0 bottom-0 left-[40%] w-[20%] bg-green-500/40 flex items-center justify-center font-pixel text-[8px] text-green-200 font-bold select-none pointer-events-none border-r border-black/20 shadow-[inset_0_0_8px_rgba(34,197,94,0.5)]">
-                  🎯 CRIT
-                </div>
-                {/* Right Flanking Yellow Zone (60% - 80%) */}
-                <div className="absolute top-0 bottom-0 left-[60%] w-[20%] bg-yellow-500/35 flex items-center justify-center font-pixel text-[8px] text-yellow-200 select-none pointer-events-none border-r border-black/20">
-                  MID
-                </div>
-                {/* Right Outer Red Zone (80% - 100%) */}
-                <div className="absolute top-0 bottom-0 left-[80%] w-[20%] bg-red-600/35 flex items-center justify-center font-pixel text-[8px] text-red-300 select-none pointer-events-none">
-                  LOW
-                </div>
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-black text-[#3A9AFF] tracking-widest uppercase flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#3A9AFF] animate-pulse" />
+              SLIDER TIMING ATTACK
+            </span>
+            {/* COMPLETED TEXT 'Current Chain: X' EXPLICITLY REPLICATED */}
+            <span id="battle-combo-chain" className="text-yellow-400 font-black text-xs tracking-wider uppercase font-mono animate-pulse">
+              Current Chain: {currentChain}
+            </span>
+          </div>
 
-                {/* Subtly brighter border dividers for high fidelity segmented style */}
-                <div className="absolute top-0 bottom-0 left-[20%] w-[1px] bg-white/20 pointer-events-none" />
-                <div className="absolute top-0 bottom-0 left-[40%] w-[1px] bg-white/30 pointer-events-none" />
-                <div className="absolute top-0 bottom-0 left-[60%] w-[1px] bg-white/30 pointer-events-none" />
-                <div className="absolute top-0 bottom-0 left-[80%] w-[1px] bg-white/20 pointer-events-none" />
-
-                {/* Moving indicator */}
-                <motion.div
-                  className={`absolute top-0 bottom-0 w-3 bg-white border-2 border-black z-30 shadow-[0_0_12px_rgba(255,255,255,0.9)] ${
-                    isSliderFrozen ? "animate-ping bg-yellow-300 border-yellow-500 shadow-[0_0_20px_#fbbf24]" : ""
-                  }`}
-                  style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}
-                />
-              </div>
-
-              {/* Perfectly aligned Grid labeling under the 5 equal width zones */}
-              <div className="grid grid-cols-5 w-full text-[8px] font-pixel leading-none text-center mb-3">
-                <span className="text-red-400 font-bold">RED [LOW]</span>
-                <span className="text-yellow-405 text-yellow-500 font-bold">YEL [MID]</span>
-                <span className="text-green-450 text-green-400 font-bold">🎯 GRN [CRIT]</span>
-                <span className="text-yellow-405 text-yellow-500 font-bold">YEL [MID]</span>
-                <span className="text-red-400 font-bold">RED [LOW]</span>
-              </div>
-
-              {/* Visual Hero Health Bar (Zero Layout Overlap, placed elegantly at the bottom) */}
-              <div className="w-full border-t border-[#3A9AFF]/20 pt-2 flex flex-col gap-1 select-none text-left">
-                <div className="flex justify-between items-center text-[8px] font-pixel">
-                  <span className="text-[#3A9AFF] font-bold tracking-wider">
-                    🛡️ HERO VITALITY STATUS
-                  </span>
-                  <span className="text-green-400 font-bold">
-                    HP: {battlePlayerHp} / {battleMaxPlayerHp}
-                  </span>
-                </div>
-                <div className="h-3.5 bg-gray-950 rounded-full border border-[#3A9AFF]/30 overflow-hidden relative shadow-[0_0_10px_rgba(34,197,94,0.2)]">
-                  <motion.div
-                    className="h-full"
-                    style={{ backgroundColor: "#22c55e" }}
-                    animate={{ width: `${(battlePlayerHp / battleMaxPlayerHp) * 100}%` }}
-                    transition={{ duration: 0.3 }}
-                  />
-                  {/* Striped aesthetic overlay for extra retro fidelity */}
-                  <div className="absolute inset-0 bg-stripes opacity-20 pointer-events-none" />
-                </div>
-              </div>
+          {/* Slider Minigame container */}
+          <div 
+            onClick={() => {
+              if (!isSliderFrozen && !isCooldown) handleStopSlider();
+            }}
+            className="w-full h-11 bg-black rounded-lg border border-slate-700 relative overflow-hidden cursor-crosshair relative shadow-inner"
+          >
+            {/* Side Low regions */}
+            <div className="absolute inset-y-0 left-0 w-[22%] bg-red-650 bg-red-900/30 flex items-center justify-center text-[7px] text-red-400 font-bold border-r border-black/40">
+              LOW
             </div>
-          ) : (
-            <>
-              {/* Active standard view selection */}
-              <div className="w-2/3 pr-3 flex flex-col justify-end pb-0 border-r border-[#3A9AFF]/30">
-                <div className="flex flex-col gap-1.5">
-                  {showDecisionMenu ? (
-                    <>
-                      <button
-                        onClick={handleFightNextEnemy}
-                        className="btn-pixel bg-[#3A9AFF] hover:bg-[#1e40af] text-black hover:text-white border-2 border-[#3A9AFF] p-1.5 font-pixel text-[9px] uppercase text-center font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                      >
-                        <Swords className="w-3.5 h-3.5 shrink-0" />
-                        FIGHT NEXT ENEMY
-                      </button>
-                      
-                      <button
-                        onClick={handleReturnToHub}
-                        className="btn-pixel bg-transparent hover:bg-slate-850 hover:text-white text-slate-300 border-2 border-slate-500 p-1.5 font-pixel text-[9px] uppercase text-center font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                        style={{ backgroundColor: "#1e293b", borderColor: "#475569" }}
-                      >
-                        <LogOut className="w-3.5 h-3.5 shrink-0" />
-                        RETURN TO HUB
-                      </button>
-                    </>
-                  ) : battleOutcome === "ongoing" ? (
-                    <>
-                      {isTransitioning ? (
-                        <div className="w-full font-pixel text-[9px] text-yellow-400 animate-pulse text-center p-2.5 border border-dashed border-yellow-500/50 rounded-lg">
-                          ⚠️ NEW ENEMY SPAWNING...
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            onClick={handleFightClick}
-                            className="btn-pixel bg-transparent hover:bg-[#3A9AFF] hover:text-[#000b1d] text-[#3A9AFF] border-2 border-[#3A9AFF] p-1.5 font-pixel text-[10px] flex items-center justify-center gap-1.5 select-none active:scale-95 transition-all text-left"
-                          >
-                            <Swords className="w-3.5 h-3.5 shrink-0" />
-                            FIGHT
-                          </button>
-                          
-                          {fiveMinuteFuseCount > 0 && (
-                            <button
-                              onClick={handleUseFiveMinuteFuse}
-                              className="btn-pixel bg-[#ea580c] text-white border-2 border-black hover:bg-orange-600 p-1.5 font-pixel text-[9px] flex items-center justify-center gap-1.5 select-none active:scale-95 transition-all w-full font-bold animate-pulse"
-                            >
-                              💣 USE 5-MIN FUSE ({fiveMinuteFuseCount})
-                            </button>
-                          )}
-                          
-                          <button
-                            onClick={onRetreat}
-                            className="btn-pixel bg-transparent hover:bg-red-500 hover:text-white text-red-400 border-2 border-red-500 p-1.5 font-pixel text-[10px] flex items-center justify-center gap-1.5 select-none active:scale-95 transition-all text-left"
-                          >
-                            <LogOut className="w-3.5 h-3.5 shrink-0" />
-                            RETREAT
-                          </button>
-                        </>
-                      )}
-                    </>
-                  ) : battleOutcome === "victory" ? (
-                    <div className="flex flex-col items-start gap-1.5 w-full text-left">
-                      <span className="font-display-hero text-[#00ff00] text-lg tracking-wider uppercase text-stroke-black animate-pulse">
-                        EPIC VICTORY!
-                      </span>
-                      <div className="bg-[#022c22]/70 border border-green-500 p-2 rounded-lg w-full mb-1.5">
-                        <p className="font-pixel text-[7px] text-yellow-400 leading-tight uppercase font-bold">🏆 THE TOMORROW TITAN CONQUERED!</p>
-                        <p className="font-pixel text-[6px] text-gray-300 leading-tight">CONQUEROR OF CHAOS BADGE AWARDED</p>
-                        <p className="font-pixel text-[7px] text-white/90 leading-tight mt-1">💰 +150 XP | +500 CREDITS</p>
-                      </div>
-                      <button
-                        onClick={handleFinalVictoryReturn}
-                        className="btn-pixel w-full bg-[#22c55e] hover:bg-[#16a34a] text-black hover:text-white border-2 border-black p-2 font-pixel text-[9px] uppercase text-center font-bold flex items-center justify-center gap-2 select-none active:scale-95 transition-all shadow-[0_4px_12px_rgba(34,197,94,0.3)]"
-                      >
-                        <LogOut className="w-3.5 h-3.5 shrink-0" />
-                        RETURN TO HUB
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-start gap-1">
-                      <span className="font-display-hero text-red-500 text-2xl tracking-widest uppercase text-stroke-black">
-                        DEFEATED
-                      </span>
-                      <button
-                        onClick={handleRestartBattle}
-                        className="btn-pixel w-full bg-red-600 text-white border-2 border-black p-1.5 font-pixel text-[10px] flex items-center justify-center gap-1.5"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        TRY AGAIN
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+            {/* Medium surrounding targets */}
+            <div className="absolute inset-y-0 left-[22%] w-[20%] bg-yellow-600/30 flex items-center justify-center text-[7px] text-yellow-300 font-bold border-r border-black/40">
+              MID
+            </div>
+            
+            {/* SPECIAL TARGET BOX EXPLICIT COORED AND BORDERS */}
+            <div id="slider-target" className="absolute inset-y-0 left-[42%] w-[16%] bg-green-500/30 border-x-2 border-green-450 border-green-500/80 flex items-center justify-center text-[8px] text-green-300 font-extrabold shadow-[inset_0_0_8px_rgba(34,197,94,0.4)]">
+              CRIT
+            </div>
 
-              {/* Right Side Status Panel */}
-              <div className="w-1/3 flex flex-col items-end justify-between pl-3">
-                <div className="animate-pulse">
-                  <Heart className="w-12 h-12 text-red-600 fill-red-600 filter drop-shadow-[0_0_8px_rgba(230,0,0,0.6)]" />
-                </div>
-                
-                <div className="text-right">
-                  <div className="font-pixel text-[10px] text-white/50 mb-1">
-                    LV {level}
-                  </div>
-                  <div className="font-pixel text-[10px] text-white">
-                    HP {playerHp}/{maxPlayerHp}
-                  </div>
-                </div>
+            <div className="absolute inset-y-0 left-[58%] w-[20%] bg-yellow-600/30 flex items-center justify-center text-[7px] text-yellow-300 font-bold border-r border-black/40">
+              MID
+            </div>
+            <div className="absolute inset-y-0 left-[78%] w-[22%] bg-red-650 bg-red-900/30 flex items-center justify-center text-[7px] text-red-400 font-bold">
+              LOW
+            </div>
+
+            {/* SLIDER BOX INDICATOR MOUNTED */}
+            <motion.div
+              id="slider-indicator"
+              className={`absolute top-0 bottom-0 w-3 bg-white border border-black z-30 shadow-[0_0_10px_#fff] ${
+                isSliderFrozen ? "bg-yellow-300 border-yellow-500 scale-125 animate-ping duration-300" : ""
+              }`}
+              style={{ left: `${sliderPosition}%`, transform: "translateX(-50%)" }}
+            />
+          </div>
+
+          <div className="flex justify-between items-center text-[9px] text-[#3A9AFF]/60 uppercase tracking-widest font-black leading-none">
+            <span>[LEFT OUTER]</span>
+            <span className="text-green-400">[TARGET ZONE (CRIT)]</span>
+            <span>[RIGHT OUTER]</span>
+          </div>
+        </div>
+
+        {/* 4. SIX-SLOT INVENTORY BAR (Replicated exactly below minigame) */}
+        <div id="battle-inventory-container" className="flex flex-col gap-2.5">
+          <span className="text-[10px] font-black text-slate-400/90 tracking-widest uppercase block text-left">
+            🧰 QUICK-USE INVENTORY SLOTS
+          </span>
+          
+          <div className="grid grid-cols-6 gap-2 w-full">
+            
+            {/* Slot 0: Blue back-arrow */}
+            <button
+              id="inventory-slot-back"
+              onClick={() => {
+                if (battleOutcome !== "ongoing") return;
+                setSliderPosition(Math.random() > 0.5 ? 5 : 95);
+                addFloatingText("SPEED RESET", "item");
+                setActionLog("Click! Re-centered slider and cleared overload speeds.");
+              }}
+              className="aspect-square bg-slate-900 border-2 border-cyan-500 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-slate-800 transition-all active:scale-95 text-cyan-400 shadow-[0_3px_6px_rgba(0,0,0,0.5)]"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="text-[7px] font-bold text-cyan-300/80 uppercase">RESET</span>
+            </button>
+
+            {/* Slot 1: Winged boots */}
+            <button
+              id="inventory-slot-boots"
+              onClick={() => {
+                if (battleOutcome !== "ongoing" || isAgilityActive) return;
+                setIsAgilityActive(true);
+                addFloatingText("AGILITY BOOST!", "heal");
+                setActionLog("💨 AGILITY ACTIVATED! Slider slows down for 5 seconds for easy critical landing!");
+                setTimeout(() => setIsAgilityActive(false), 5000);
+              }}
+              className={`aspect-square border-2 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-slate-800 transition-all active:scale-95 shadow-[0_3px_6px_rgba(0,0,0,0.5)] ${
+                isAgilityActive || hasBootsMomentum
+                  ? "border-amber-400 bg-amber-950/40 text-amber-300 animate-pulse"
+                  : "border-slate-700 bg-slate-900 text-slate-450 text-slate-400"
+              }`}
+            >
+              <Wind className="w-5 h-5 text-amber-400" />
+              <span className="text-[7px] font-bold text-amber-300 uppercase">BOOTS</span>
+            </button>
+
+            {/* Slot 2: Question-mark shield #1 */}
+            <button
+              id="inventory-slot-shield-q1"
+              onClick={() => {
+                if (battleOutcome !== "ongoing") return;
+                setActiveShields((s) => s + 1);
+                addFloatingText("AEGIS SHIELD!", "heal");
+                setActionLog("🛡️ ORACLE AEGIS ACTIVE! Absorbing next direct boss attack completely!");
+              }}
+              className="aspect-square bg-slate-900 border-2 border-slate-700 rounded-xl flex flex-col items-center justify-center hover:bg-slate-800 transition-all active:scale-95 text-slate-450 text-slate-450 text-slate-400 shadow-[0_3px_6px_rgba(0,0,0,0.5)]"
+            >
+              <div className="relative">
+                <Shield className="w-5 h-5 text-purple-400" />
+                <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-white mt-[-1px]">?</span>
               </div>
-            </>
+              <span className="text-[7px] font-bold text-purple-300 uppercase">SHIELD ?</span>
+            </button>
+
+            {/* Slot 3: Question-mark shield #2 */}
+            <button
+              id="inventory-slot-shield-q2"
+              onClick={() => {
+                if (battleOutcome !== "ongoing") return;
+                setActiveShields((s) => s + 1);
+                addFloatingText("BUBBLE SHIELD!", "heal");
+                setActionLog("🫧 BUBBLE AEGIS ACTIVE! Energy grid forcefield deployed.");
+              }}
+              className="aspect-square bg-slate-900 border-2 border-slate-700 rounded-xl flex flex-col items-center justify-center hover:bg-slate-800 transition-all active:scale-95 text-slate-450 text-slate-400 shadow-[0_3px_6px_rgba(0,0,0,0.5)]"
+            >
+              <div className="relative">
+                <Shield className="w-5 h-5 text-teal-400" />
+                <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-white mt-[-1px]">?</span>
+              </div>
+              <span className="text-[7px] font-bold text-teal-300 uppercase">SHIELD ?</span>
+            </button>
+
+            {/* Slot 4: Helmet */}
+            <button
+              id="inventory-slot-helmet"
+              onClick={() => {
+                if (battleOutcome !== "ongoing" || isHelmetFortified) return;
+                setIsHelmetFortified(true);
+                addFloatingText("HELMET FORTIFY", "item");
+                setActionLog("⛑️ HELMET FORTIFIED! Takes 50% reduced damage from the next attack!");
+              }}
+              className={`aspect-square border-2 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-slate-800 transition-all active:scale-95 shadow-[0_3px_6px_rgba(0,0,0,0.5)] ${
+                hasNoiseHelmet || isHelmetFortified
+                  ? "border-emerald-400 bg-emerald-950/40 text-emerald-300 animate-pulse"
+                  : "border-slate-700 bg-slate-900 text-slate-400"
+              }`}
+            >
+              <Shield className="w-5 h-5 text-emerald-400" />
+              <span className="text-[7px] font-bold text-emerald-300 uppercase">HELMET</span>
+            </button>
+
+            {/* Slot 5: Red bomb (Fuse) */}
+            <button
+              id="inventory-slot-bomb"
+              onClick={() => {
+                if (battleOutcome !== "ongoing") return;
+                triggerBombFuse();
+              }}
+              className="aspect-square bg-slate-900 border-2 border-red-500 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-slate-800 transition-all active:scale-95 text-red-400 shadow-[0_3px_6px_rgba(0,0,0,0.5)] cursor-pointer"
+            >
+              <Bomb className="w-5 h-5 text-red-500 animate-pulse" />
+              {fiveMinuteFuseCount > 0 ? (
+                <span className="text-[7px] font-bold text-red-350 block">💣 ({fiveMinuteFuseCount})</span>
+              ) : (
+                <span className="text-[7px] font-bold text-red-300 uppercase">FUSE</span>
+              )}
+            </button>
+
+          </div>
+        </div>
+
+        {/* 5. RETREAT ICON BUTTON SECTION */}
+        <div id="battle-retreat-bar" className="w-full mt-2">
+          <button
+            id="inventory-retreat-btn"
+            onClick={handleEscapeRetreat}
+            className="w-full bg-gradient-to-r from-red-950 to-red-900 hover:from-red-900 hover:to-red-800 border-2 border-red-500/80 py-2.5 rounded-xl font-bold tracking-widest text-[#FF4C4C] hover:text-white flex items-center justify-center gap-2 select-none active:scale-98 transition-all shadow-[0_4px_12px_rgba(239,68,68,0.2)] font-mono text-[11px] uppercase group"
+          >
+            <LogOut className="w-4 h-4 text-[#FF4C4C] group-hover:text-white group-hover:animate-bounce shrink-0" />
+            <span>Retreat Icon & Option</span>
+          </button>
+        </div>
+
+        {/* Victory/Defeat Overlay Cards */}
+        <AnimatePresence>
+          {showDecisionMenu && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/90 p-4 flex flex-col items-center justify-center text-center"
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="bg-slate-900 border-4 border-yellow-400 p-5 rounded-2xl max-w-sm w-full shadow-2xl relative"
+              >
+                <Trophy className="w-14 h-14 text-yellow-400 mx-auto mb-2 animate-bounce" />
+                <h3 className="text-yellow-400 font-extrabold text-sm tracking-wide uppercase mb-1">
+                  ⚔️ CONFLICT STAGE CLEARED!
+                </h3>
+                <p className="text-xs text-green-400 font-bold mb-4">
+                  REWARDS SECURED: +100-250 XP & CREDITS!
+                </p>
+                <p className="text-xs text-slate-300 leading-relaxed mb-6 italic">
+                  But the battle resolves... New stage approaches. Would you like to progress immediately or rest at the central hub?
+                </p>
+
+                <div className="flex flex-col gap-2">
+                  <button
+                    id="decision-fight-next"
+                    onClick={handleFightNextEnemy}
+                    className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-2.5 rounded-xl text-xs uppercase"
+                  >
+                    🚀 Advance To Next Stage
+                  </button>
+                  <button
+                    id="decision-return-hub"
+                    onClick={handleReturnToHub}
+                    className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 rounded-xl text-xs uppercase"
+                  >
+                    🏠 Back to Hub Base
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
           )}
 
-        </div>
+          {battleOutcome === "defeat" && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 z-50 bg-black/95 p-4 flex flex-col items-center justify-center text-center"
+            >
+              <div className="bg-slate-950 border-4 border-red-650 border-red-600 p-6 rounded-2xl max-w-xs w-full shadow-2xl">
+                <Heart className="w-12 h-12 text-red-500 fill-red-500 mx-auto mb-3 animate-pulse" />
+                <h3 className="text-red-500 font-black text-base uppercase tracking-wider mb-2">DEFEAT</h3>
+                <p className="text-xs text-slate-300 leading-relaxed mb-5">
+                  Shadow bind overpowers your neural loops. Recharge your energy at the base and prepare again!
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    id="defeat-try-again-btn"
+                    onClick={handleRestartBattle}
+                    className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-2.5 rounded-xl text-xs uppercase flex items-center justify-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Retry Fight
+                  </button>
+                  <button
+                    id="defeat-return-hub-btn"
+                    onClick={onRetreat}
+                    className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 rounded-xl text-xs uppercase"
+                  >
+                    🏠 Retreat to Base
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {battleOutcome === "victory" && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 z-50 bg-black/95 p-4 flex flex-col items-center justify-center text-center"
+            >
+              <div className="bg-slate-950 border-4 border-yellow-400 p-6 rounded-2xl max-w-xs w-full shadow-2xl">
+                <Trophy className="w-14 h-14 text-yellow-500 mx-auto mb-3 animate-ping" />
+                <h3 className="text-yellow-400 font-black text-sm uppercase tracking-wider mb-2">🏆 REALM OVERTHROWN</h3>
+                <p className="text-xs text-green-400 font-bold mb-4">
+                  SYSTEM OVERLORD DESTROYED!
+                </p>
+                <p className="text-[11px] text-slate-300 leading-normal mb-5">
+                  You conquered Dr. Distraction and the Tomorrow Titan! Dynamic balance has been restored to the system.
+                </p>
+                <button
+                  id="ultimate-victory-return-btn"
+                  onClick={handleRestartBattle}
+                  className="w-full bg-green-500 hover:bg-green-400 text-black font-black py-2.5 rounded-xl text-xs uppercase"
+                >
+                  Return and Reset Progression
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </div>
   );
