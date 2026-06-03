@@ -54,7 +54,7 @@ export default function StatsView({
   const habit4 = habits.find((h) => h.id === "habit_4") || { streakCount: 5, xpReward: 30 };
 
   return (
-    <main className="px-5 flex flex-col gap-8 mt-24 mb-24 w-full max-w-md mx-auto">
+    <main className="px-5 flex flex-col gap-8 mt-4 mb-24 w-full max-w-md mx-auto">
       
       {/* Overview Card */}
       <section className="bg-[#1C0770] comic-border comic-shadow rounded-2xl p-5 relative overflow-hidden flex flex-row items-center gap-4 w-full">

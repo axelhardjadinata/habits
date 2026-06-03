@@ -420,7 +420,7 @@ export default function HomeView({
   };
 
   return (
-    <main className="px-5 flex flex-col gap-6 mt-24 mb-24 w-full max-w-sm mx-auto">
+    <main className="px-5 flex flex-col gap-6 mt-4 mb-24 w-full max-w-sm mx-auto">
       
       {/* Dynamic Profile Section */}
       <section className="bg-[#1C0770] comic-border rounded-2xl p-4 comic-shadow flex items-center gap-4 relative overflow-hidden">

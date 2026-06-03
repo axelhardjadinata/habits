@@ -132,7 +132,7 @@ export default function ShopView({
   };
 
   return (
-    <main className="px-4 flex flex-col gap-6 mt-24 mb-24 w-full max-w-xl mx-auto">
+    <main className="px-4 flex flex-col gap-6 mt-4 mb-24 w-full max-w-xl mx-auto">
       
       <section className="text-center w-full">
         <h2 className="font-display-hero text-3xl text-white tracking-widest uppercase italic transform -skew-x-6 text-stroke-black">

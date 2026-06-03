@@ -35,7 +35,7 @@ export default function SettingsView({
   };
 
   return (
-    <main className="px-5 flex flex-col gap-6 mt-24 mb-24 w-full max-w-md mx-auto">
+    <main className="px-5 flex flex-col gap-6 mt-4 mb-24 w-full max-w-md mx-auto">
       
       <h2 className="font-display-hero text-3xl text-white italic mb-2 tracking-wide text-stroke-black uppercase">
         COMMAND CENTER CONFIG
